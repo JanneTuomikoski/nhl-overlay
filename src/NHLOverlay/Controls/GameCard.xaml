@@ -8,11 +8,12 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
     <!-- Clicking the card (interaction mode only) opens its goal list. -->
-    <Border Padding="10,4" Background="Transparent" Cursor="Hand" ToolTip="{Binding ToolTip}">
-        <Border.InputBindings>
+    <Grid Cursor="Hand" ToolTip="{Binding ToolTip}" Style="{StaticResource FavoriteCardBackground}">
+        <Grid.InputBindings>
             <MouseBinding Gesture="LeftClick" Command="{Binding ToggleDetailsCommand}" />
-        </Border.InputBindings>
-        <StackPanel>
+        </Grid.InputBindings>
+        <Rectangle Style="{StaticResource FavoriteBar}" />
+        <StackPanel Margin="10,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -74,5 +75,5 @@
                 </controls:GoalList.Style>
             </controls:GoalList>
         </StackPanel>
-    </Border>
+    </Grid>
 </UserControl>

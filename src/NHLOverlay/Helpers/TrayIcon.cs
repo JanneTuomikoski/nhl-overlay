@@ -10,6 +10,7 @@ public sealed class TrayIcon : IDisposable
     private readonly Forms.ToolStripMenuItem _toggleOverlayItem;
     private readonly Forms.ToolStripMenuItem _interactionItem;
     private readonly Forms.ToolStripMenuItem _expandedItem;
+    private readonly Forms.ToolStripMenuItem _filterItem;
 
     public event EventHandler? ToggleOverlayRequested;
     public event EventHandler? ToggleInteractionRequested;
@@ -31,6 +32,8 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(_interactionItem);
         _expandedItem = new Forms.ToolStripMenuItem("Expanded view", null, (_, _) => ToggleDisplayModeRequested?.Invoke(this, EventArgs.Empty));
         menu.Items.Add(_expandedItem);
+        _filterItem = new Forms.ToolStripMenuItem("Show");
+        menu.Items.Add(_filterItem);
         menu.Items.Add(new Forms.ToolStripMenuItem("Refresh now", null, (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Forms.ToolStripMenuItem("Settings...", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -57,6 +60,14 @@ public sealed class TrayIcon : IDisposable
     public void SetInteractionMode(bool interactive) => _interactionItem.Checked = interactive;
 
     public void SetExpanded(bool expanded) => _expandedItem.Checked = expanded;
+
+    /// <summary>Rebuilds the "Show" submenu (game filter choices).</summary>
+    public void SetFilterChoices(IEnumerable<(string Label, bool IsChecked, Action Select)> choices)
+    {
+        _filterItem.DropDownItems.Clear();
+        foreach (var (label, isChecked, select) in choices)
+            _filterItem.DropDownItems.Add(new Forms.ToolStripMenuItem(label, null, (_, _) => select()) { Checked = isChecked });
+    }
 
     /// <summary>Tooltip text is limited to 127 characters by Windows.</summary>
     public void SetToolTip(string text) =>

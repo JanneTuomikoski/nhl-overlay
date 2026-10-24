@@ -18,6 +18,7 @@ public partial class App : Application
     private SettingsService? _settings;
     private NhlApiService? _api;
     private LogoService? _logos;
+    private TeamDirectoryService? _teams;
     private ScorePollingService? _polling;
     private GameStateService? _state;
     private HotkeyService? _hotkeys;
@@ -59,8 +60,10 @@ public partial class App : Application
             _state,
             () => TimeSpan.FromSeconds(_settings.Current.General.RefreshIntervalSeconds),
             TimeProvider.System);
+        _teams = new TeamDirectoryService(_api, _settings.CacheDirectory, TimeProvider.System);
+        _teams.Start(_state);
 
-        var overlayViewModel = new OverlayViewModel(_state, _settings, _logos, _polling.SetViewedDate, Dispatcher);
+        var overlayViewModel = new OverlayViewModel(_state, _settings, _logos, _teams, _polling.SetViewedDate, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);
@@ -91,6 +94,10 @@ public partial class App : Application
     {
         _tray?.SetInteractionMode(!s.Window.ClickThrough);
         _tray?.SetExpanded(s.Appearance.DisplayMode == DisplayMode.Expanded);
+        _tray?.SetFilterChoices(Enum.GetValues<GameFilter>().Select(filter => (
+            GameOrdering.Describe(filter),
+            filter == s.Teams.Filter,
+            (Action)(() => _settings?.Update(x => x.Teams.Filter = filter)))));
     }
 
     private void ToggleOverlay()
@@ -119,7 +126,7 @@ public partial class App : Application
             return;
         }
 
-        var viewModel = new SettingsViewModel(_settings!, _state!, _hotkeys!, () => _polling?.RequestRefresh(), Dispatcher);
+        var viewModel = new SettingsViewModel(_settings!, _state!, _hotkeys!, _teams!, _logos!, () => _polling?.RequestRefresh(), Dispatcher);
         _settingsWindow = new SettingsWindow(viewModel);
         _settingsWindow.Closed += (_, _) =>
         {
@@ -143,6 +150,7 @@ public partial class App : Application
     {
         Log.Info("Exiting.");
         _polling?.Dispose();
+        _teams?.Dispose();
         _api?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();

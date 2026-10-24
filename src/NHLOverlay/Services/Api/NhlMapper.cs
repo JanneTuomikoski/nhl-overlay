@@ -105,6 +105,36 @@ internal static class NhlMapper
         _ => PeriodType.Unknown,
     };
 
+    public static IReadOnlyList<TeamStanding> MapStandings(IEnumerable<StandingDto?>? rows) =>
+        (rows ?? [])
+        .Where(r => !string.IsNullOrWhiteSpace(r?.TeamAbbrev?.Default))
+        .Select(r => new TeamStanding
+        {
+            Abbrev = r!.TeamAbbrev!.Default!,
+            FullName = r.TeamName?.Default ?? r.TeamAbbrev.Default!,
+            CommonName = r.TeamCommonName?.Default ?? r.TeamName?.Default ?? r.TeamAbbrev.Default!,
+            LogoUrl = r.TeamLogo,
+            Conference = r.ConferenceAbbrev ?? "",
+            ConferenceName = r.ConferenceName ?? NhlTeams.ConferenceName(r.ConferenceAbbrev ?? ""),
+            Division = r.DivisionAbbrev ?? "",
+            DivisionName = r.DivisionName ?? NhlTeams.DivisionName(r.DivisionAbbrev ?? ""),
+            GamesPlayed = r.GamesPlayed ?? 0,
+            Wins = r.Wins ?? 0,
+            Losses = r.Losses ?? 0,
+            OtLosses = r.OtLosses ?? 0,
+            Points = r.Points ?? 0,
+            PointPct = r.PointPctg ?? 0,
+            RegulationWins = r.RegulationWins ?? 0,
+            GoalDifferential = r.GoalDifferential ?? 0,
+            DivisionRank = r.DivisionSequence ?? 0,
+            ConferenceRank = r.ConferenceSequence ?? 0,
+            LeagueRank = r.LeagueSequence ?? 0,
+            WildcardRank = r.WildcardSequence ?? 0,
+            LastTen = r.L10Wins is null ? "" : $"{r.L10Wins}-{r.L10Losses ?? 0}-{r.L10OtLosses ?? 0}",
+            Streak = string.IsNullOrEmpty(r.StreakCode) ? "" : $"{r.StreakCode}{r.StreakCount}",
+        })
+        .ToList();
+
     private static HockeyTeam MapTeam(TeamDto? dto) => new()
     {
         Id = dto?.Id ?? 0,

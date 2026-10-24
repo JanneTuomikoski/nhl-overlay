@@ -12,6 +12,10 @@ public interface INhlApiClient
 {
     /// <summary>All games on one NHL schedule date, including clock, shots and goals.</summary>
     Task<IReadOnlyList<HockeyGame>> GetGamesForDateAsync(DateOnly nhlDate, CancellationToken cancellationToken);
+
+    /// <summary>Current standings for all teams (empty in the off-season).</summary>
+    Task<IReadOnlyList<TeamStanding>> GetStandingsAsync(CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 /// <summary>Failure talking to the NHL API. <see cref="RetryAfter"/> is set when the server asked us to back off.</summary>
@@ -55,7 +59,13 @@ public sealed class NhlApiService : INhlApiClient, IDisposable
         return NhlMapper.MapGames(dto?.Games);
     }
 
-    private async Task<T?> GetJsonAsync<T>(string path, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TeamStanding>> GetStandingsAsync(CancellationToken cancellationToken)
+    {
+        var dto = await GetJsonAsync<StandingsResponseDto>("standings/now", cancellationToken).ConfigureAwait(false);
+        return NhlMapper.MapStandings(dto?.Standings);
+    }
+
+    internal async Task<T?> GetJsonAsync<T>(string path, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(RequestTimeout);

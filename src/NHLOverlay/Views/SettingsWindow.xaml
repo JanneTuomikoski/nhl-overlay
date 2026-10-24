@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
         Title="NHL Live Overlay - Settings"
-        Width="720" Height="540" MinWidth="600" MinHeight="460"
+        Width="780" Height="620" MinWidth="640" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Icon="pack://application:,,,/Assets/app.ico"
         Background="{StaticResource WindowBackgroundBrush}"
@@ -60,6 +60,58 @@
                                  SelectedItem="{Binding RefreshIntervalSeconds}" />
                         <TextBlock Style="{StaticResource Hint}"
                                    Text="Used while games are live. When nothing is live, scores are checked less often until shortly before the next game starts." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Teams">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Teams}">
+                    <StackPanel>
+                        <TextBlock Text="Teams" Style="{StaticResource SectionHeader}" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                                   Text="Pick your favorite teams. Their games are highlighted, listed first and used for notifications." />
+
+                        <ItemsControl ItemsSource="{Binding TeamGroups}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource FieldLabel}" Margin="0,8,0,6" />
+                                        <ItemsControl ItemsSource="{Binding Teams}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <ToggleButton Style="{StaticResource TeamChip}" IsChecked="{Binding IsFavorite}"
+                                                                  ToolTip="{Binding FullName}" AutomationProperties.Name="{Binding FullName}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Image Source="{Binding Logo}" Width="20" Height="20" Margin="0,0,6,0" />
+                                                            <TextBlock Text="{Binding Abbrev}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                                        </StackPanel>
+                                                    </ToggleButton>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Style="{StaticResource DarkButton}" Content="Clear favorites" HorizontalAlignment="Left"
+                                Margin="0,6,0,0" Command="{Binding ClearFavoritesCommand}" />
+
+                        <TextBlock Text="Show in today's view" Style="{StaticResource FieldLabel}" Margin="0,22,0,6" />
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding FilterOptions}" DisplayMemberPath="Label"
+                                 SelectedValuePath="Value" SelectedValue="{Binding Filter}" />
+
+                        <TextBlock Text="Order" Style="{StaticResource FieldLabel}" />
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding SortOptions}" DisplayMemberPath="Label"
+                                 SelectedValuePath="Value" SelectedValue="{Binding SortOrder}" />
+
+                        <TextBlock Text="Favorite highlight" Style="{StaticResource FieldLabel}" />
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding HighlightOptions}" DisplayMemberPath="Label"
+                                 SelectedValuePath="Value" SelectedValue="{Binding Highlight}" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

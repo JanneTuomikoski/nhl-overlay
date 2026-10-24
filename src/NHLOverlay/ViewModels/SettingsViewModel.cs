@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using NHLOverlay.Helpers;
 using NHLOverlay.Models;
 using NHLOverlay.Services;
+using NHLOverlay.ViewModels.Settings;
 
 namespace NHLOverlay.ViewModels;
 
@@ -21,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly EventHandler<ScoreboardSnapshot> _stateHandler;
     private readonly EventHandler _hotkeyProblemsHandler;
+    private readonly IReadOnlyList<ISettingsSection> _sections;
 
     private bool _launchWithWindows;
     private bool _showOverlayOnStartup;
@@ -42,12 +44,21 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string _lastSuccessText = "";
     private string _lastErrorText = "";
 
-    public SettingsViewModel(SettingsService settings, GameStateService state, HotkeyService hotkeys, Action refreshNow, Dispatcher dispatcher)
+    public SettingsViewModel(
+        SettingsService settings,
+        GameStateService state,
+        HotkeyService hotkeys,
+        TeamDirectoryService teams,
+        LogoService logos,
+        Action refreshNow,
+        Dispatcher dispatcher)
     {
         _settings = settings;
         _state = state;
         _hotkeys = hotkeys;
         _dispatcher = dispatcher;
+        Teams = new TeamsSectionViewModel(teams, logos);
+        _sections = [Teams];
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(this, EventArgs.Empty));
@@ -71,6 +82,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public ICommand RefreshNowCommand { get; }
     public ICommand ResetCommand { get; }
     public ICommand OpenSettingsFolderCommand { get; }
+
+    public TeamsSectionViewModel Teams { get; }
 
     // General
     public IReadOnlyList<int> RefreshIntervals { get; } = GeneralSettings.AllowedRefreshIntervals;
@@ -159,6 +172,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         SnapToEdges = s.Window.SnapToEdges;
         ToggleOverlayHotkey = s.Hotkeys.ToggleOverlay;
         ToggleInteractionHotkey = s.Hotkeys.ToggleInteraction;
+        foreach (var section in _sections) section.Load(s);
     }
 
     private void Save()
@@ -181,6 +195,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             s.Window.SnapToEdges = SnapToEdges;
             s.Hotkeys.ToggleOverlay = ToggleOverlayHotkey;
             s.Hotkeys.ToggleInteraction = ToggleInteractionHotkey;
+            foreach (var section in _sections) section.Apply(s);
         });
         if (startupChanged) StartupRegistration.Apply(LaunchWithWindows);
         CloseRequested?.Invoke(this, EventArgs.Empty);

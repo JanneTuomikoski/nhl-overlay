@@ -18,6 +18,8 @@ public sealed class AppSettings
 
     public HotkeySettings Hotkeys { get; set; } = new();
 
+    public TeamSettings Teams { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -26,6 +28,62 @@ public sealed class AppSettings
         Appearance = (Appearance ?? new()).Normalize();
         Window = (Window ?? new()).Normalize();
         Hotkeys = (Hotkeys ?? new()).Normalize();
+        Teams = (Teams ?? new()).Normalize();
+        return this;
+    }
+
+    internal static T DefinedOr<T>(T value, T fallback) where T : struct, Enum => Enum.IsDefined(value) ? value : fallback;
+
+    /// <summary>Trimmed, upper-case, distinct, non-empty team keys.</summary>
+    internal static List<string> NormalizeTeamList(List<string>? teams) =>
+        (teams ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
+                     .Select(t => t.Trim().ToUpperInvariant())
+                     .Distinct()
+                     .ToList();
+}
+
+public enum GameFilter
+{
+    All,
+    Favorites,
+    Live,
+    LiveAndUpcoming,
+    HatTrickWatch,
+    Completed,
+}
+
+public enum GameSortOrder
+{
+    /// <summary>Live favorites, live, upcoming favorites, upcoming, finished.</summary>
+    Default,
+    StartTime,
+}
+
+public enum FavoriteHighlight
+{
+    BarAndTint,
+    Bar,
+    None,
+}
+
+public sealed class TeamSettings
+{
+    /// <summary>Favorite team abbreviations, e.g. "EDM".</summary>
+    public List<string> Favorites { get; set; } = [];
+
+    /// <summary>Applies to the today view; other days always show every game.</summary>
+    public GameFilter Filter { get; set; } = GameFilter.All;
+
+    public GameSortOrder SortOrder { get; set; } = GameSortOrder.Default;
+
+    public FavoriteHighlight Highlight { get; set; } = FavoriteHighlight.BarAndTint;
+
+    internal TeamSettings Normalize()
+    {
+        Favorites = AppSettings.NormalizeTeamList(Favorites);
+        Filter = AppSettings.DefinedOr(Filter, GameFilter.All);
+        SortOrder = AppSettings.DefinedOr(SortOrder, GameSortOrder.Default);
+        Highlight = AppSettings.DefinedOr(Highlight, FavoriteHighlight.BarAndTint);
         return this;
     }
 }

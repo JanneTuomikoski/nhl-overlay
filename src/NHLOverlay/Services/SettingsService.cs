@@ -120,6 +120,7 @@ public sealed class SettingsService
             Appearance = ReadSection<AppearanceSettings>(root, "appearance", brokenSections),
             Window = ReadSection<WindowSettings>(root, "window", brokenSections),
             Hotkeys = ReadSection<HotkeySettings>(root, "hotkeys", brokenSections),
+            Teams = ReadSection<TeamSettings>(root, "teams", brokenSections),
         };
         return settings.Normalize();
     }
@@ -155,14 +156,17 @@ public sealed class SettingsService
         Changed?.Invoke(this, snapshot);
     }
 
-    public void ResetToDefaults() => Update(s =>
+    public void ResetToDefaults()
     {
-        var defaults = new AppSettings();
-        s.General = defaults.General;
-        s.Appearance = defaults.Appearance;
-        s.Window = defaults.Window;
-        s.Hotkeys = defaults.Hotkeys;
-    });
+        var defaults = new AppSettings().Normalize();
+        lock (_gate)
+        {
+            Current = defaults;
+            TrySave(defaults);
+        }
+
+        Changed?.Invoke(this, defaults);
+    }
 
     public static AppSettings Clone(AppSettings settings) =>
         JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings, JsonOptions), JsonOptions) ?? new AppSettings();

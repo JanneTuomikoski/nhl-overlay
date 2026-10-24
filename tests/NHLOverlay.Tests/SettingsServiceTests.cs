@@ -166,6 +166,19 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Contains("appearance", service.LoadWarning);
     }
 
+    [Fact]
+    public void Team_settings_are_normalized()
+    {
+        WriteSettingsFile("""{ "teams": { "favorites": [" edm", "EDM", "", "tor"], "filter": "Live", "sortOrder": "StartTime" } }""");
+        var service = CreateService();
+        service.Load();
+
+        Assert.Equal(["EDM", "TOR"], service.Current.Teams.Favorites);
+        Assert.Equal(GameFilter.Live, service.Current.Teams.Filter);
+        Assert.Equal(GameSortOrder.StartTime, service.Current.Teams.SortOrder);
+        Assert.Equal(FavoriteHighlight.BarAndTint, service.Current.Teams.Highlight);
+    }
+
     [Theory]
     [InlineData("Ctrl+Alt+N", "Ctrl+Alt+N")]
     [InlineData("alt + ctrl + n", "Ctrl+Alt+N")]

@@ -13,6 +13,9 @@ internal static class Fixtures
     /// <summary>Captured 2026-10-22: twelve OFF games, including two OT finals and one shootout final (CAR-EDM).</summary>
     public const string FinalDay = "score_2026-10-22_final.json";
 
+    /// <summary>Captured /standings/now on 2026-10-24.</summary>
+    public const string Standings = "standings_2026-10-24.json";
+
     public static string Read(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
 
     public static NhlApiService ApiReturning(string json) =>
@@ -49,12 +52,19 @@ internal sealed class FakeNhlApi : INhlApiClient
 
     public List<DateOnly> Requests { get; } = [];
 
+    public IReadOnlyList<TeamStanding> Standings { get; set; } = [];
+
+    public NhlApiException? StandingsFailure { get; set; }
+
     public Task<IReadOnlyList<HockeyGame>> GetGamesForDateAsync(DateOnly nhlDate, CancellationToken cancellationToken)
     {
         Requests.Add(nhlDate);
         if (Failure is not null) throw Failure;
         return Task.FromResult(Games.TryGetValue(nhlDate, out var games) ? games : (IReadOnlyList<HockeyGame>)[]);
     }
+
+    public Task<IReadOnlyList<TeamStanding>> GetStandingsAsync(CancellationToken cancellationToken) =>
+        StandingsFailure is not null ? Task.FromException<IReadOnlyList<TeamStanding>>(StandingsFailure) : Task.FromResult(Standings);
 }
 
 internal static class TestGames

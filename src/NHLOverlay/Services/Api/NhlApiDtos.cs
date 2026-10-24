@@ -71,6 +71,40 @@ internal sealed class GameOutcomeDto
     public string? LastPeriodType { get; set; }
 }
 
+internal sealed class StandingsResponseDto
+{
+    public List<StandingDto>? Standings { get; set; }
+}
+
+internal sealed class StandingDto
+{
+    public LocalizedStringDto? TeamAbbrev { get; set; }
+    public LocalizedStringDto? TeamName { get; set; }
+    public LocalizedStringDto? TeamCommonName { get; set; }
+    public string? TeamLogo { get; set; }
+    public string? ConferenceAbbrev { get; set; }
+    public string? ConferenceName { get; set; }
+    public string? DivisionAbbrev { get; set; }
+    public string? DivisionName { get; set; }
+    public int? GamesPlayed { get; set; }
+    public int? Wins { get; set; }
+    public int? Losses { get; set; }
+    public int? OtLosses { get; set; }
+    public int? Points { get; set; }
+    public double? PointPctg { get; set; }
+    public int? RegulationWins { get; set; }
+    public int? GoalDifferential { get; set; }
+    public int? DivisionSequence { get; set; }
+    public int? ConferenceSequence { get; set; }
+    public int? LeagueSequence { get; set; }
+    public int? WildcardSequence { get; set; }
+    public int? L10Wins { get; set; }
+    public int? L10Losses { get; set; }
+    public int? L10OtLosses { get; set; }
+    public string? StreakCode { get; set; }
+    public int? StreakCount { get; set; }
+}
+
 internal sealed class GoalDto
 {
     public long? EventId { get; set; }

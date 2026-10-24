@@ -26,6 +26,7 @@ public sealed class OverlayViewModel : ObservableObject
 
     private readonly SettingsService _settings;
     private readonly LogoService _logos;
+    private readonly TeamDirectoryService _teams;
     private readonly Action<DateOnly?> _requestDate;
     private readonly DispatcherTimer _returnToToday;
     private readonly Dictionary<long, GameCardViewModel> _cards = [];
@@ -42,10 +43,18 @@ public sealed class OverlayViewModel : ObservableObject
     private string _dayLabel = "TODAY";
     private string? _message;
 
-    public OverlayViewModel(GameStateService state, SettingsService settings, LogoService logos, Action<DateOnly?> requestDate, Dispatcher dispatcher)
+    public OverlayViewModel(
+        GameStateService state,
+        SettingsService settings,
+        LogoService logos,
+        TeamDirectoryService teams,
+        Action<DateOnly?> requestDate,
+        Dispatcher dispatcher)
     {
         _settings = settings;
         _logos = logos;
+        _teams = teams;
+        teams.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
         _requestDate = requestDate;
         _returnToToday = new DispatcherTimer(DispatcherPriority.Normal, dispatcher) { Interval = ReturnToTodayAfter };
         _returnToToday.Tick += (_, _) => SetDayOffset(0);
@@ -143,9 +152,10 @@ public sealed class OverlayViewModel : ObservableObject
     private void Apply(ScoreboardSnapshot snapshot)
     {
         _snapshot = snapshot;
-        var now = DateTimeOffset.UtcNow;
         var culture = CultureInfo.CurrentCulture;
-        var appearance = _settings.Current.Appearance;
+        var settings = _settings.Current;
+        var favorites = settings.Teams.Favorites.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var context = new CardContext(settings.Appearance, settings.Teams, favorites, _teams.Find, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture);
 
         var viewed = ViewedDate();
         DayLabel = viewed is { } date ? GameStatusFormatter.FormatDayLabel(date, snapshot.TodayNhlDate, culture) : "TODAY";
@@ -153,7 +163,11 @@ public sealed class OverlayViewModel : ObservableObject
         IReadOnlyList<HockeyGame>? source = _dayOffset == 0
             ? snapshot.HasData ? snapshot.Games : null
             : viewed is { } d && snapshot.GamesByDate.TryGetValue(d, out var dayGames) ? dayGames : null;
-        SyncCards(source is null ? [] : GameOrdering.Sort(source), appearance, now, culture);
+
+        // The filter applies to the today view only; browsing other days always shows every game.
+        var filter = _dayOffset == 0 ? settings.Teams.Filter : GameFilter.All;
+        var visible = source is null ? [] : GameOrdering.Sort(GameOrdering.Filter(source, filter, favorites, HasHatTrickWatch), favorites, settings.Teams.SortOrder);
+        SyncCards(visible, context);
 
         Connection = (snapshot.HasData, snapshot.IsStale, snapshot.LastError) switch
         {
@@ -172,6 +186,7 @@ public sealed class OverlayViewModel : ObservableObject
                 ? $"NHL scores unavailable. Retrying at {Time(next)}."
                 : "NHL scores unavailable.",
             (_, null) => "Loading...",
+            _ when Games.Count == 0 && source.Count > 0 => $"No games match the filter: {GameOrdering.Describe(filter).ToLowerInvariant()}.",
             _ when Games.Count == 0 => _dayOffset == 0 ? "No NHL games today." : $"No NHL games on {DayLabel.ToLowerInvariant()}.",
             _ => null,
         };
@@ -187,7 +202,10 @@ public sealed class OverlayViewModel : ObservableObject
         StatusToolTip = string.Join(Environment.NewLine, tip);
     }
 
-    private void SyncCards(IReadOnlyList<HockeyGame> ordered, AppearanceSettings appearance, DateTimeOffset now, CultureInfo culture)
+    // Placeholder until Hat-Trick Watch lands: no game qualifies yet.
+    private static bool HasHatTrickWatch(HockeyGame game) => false;
+
+    private void SyncCards(IReadOnlyList<HockeyGame> ordered, CardContext context)
     {
         var ids = ordered.Select(g => g.Id).ToHashSet();
         for (var i = Games.Count - 1; i >= 0; i--)
@@ -206,7 +224,7 @@ public sealed class OverlayViewModel : ObservableObject
                 _cards[game.Id] = card;
             }
 
-            card.Update(game, appearance, now, TimeZoneInfo.Local, culture);
+            card.Update(game, context);
             var index = Games.IndexOf(card);
             if (index < 0) Games.Insert(i, card);
             else if (index != i) Games.Move(index, i);

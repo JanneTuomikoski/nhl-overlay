@@ -11,6 +11,16 @@ namespace NHLOverlay.ViewModels;
 /// <summary>One line of a game's goal list: "2ND 08:14  EDM  C. McDavid  PP  2-1".</summary>
 public sealed record GoalLine(string Period, string Time, string Team, string Scorer, string Tags, string Score);
 
+/// <summary>Everything a card needs besides the game itself; built once per refresh.</summary>
+public sealed record CardContext(
+    AppearanceSettings Appearance,
+    TeamSettings Teams,
+    IReadOnlySet<string> Favorites,
+    Func<string, TeamStanding?> FindTeam,
+    DateTimeOffset Now,
+    TimeZoneInfo LocalZone,
+    CultureInfo Culture);
+
 /// <summary>One game card. Updated in place on every refresh so the UI doesn't rebuild or flicker.</summary>
 public sealed class GameCardViewModel : ObservableObject
 {
@@ -40,6 +50,9 @@ public sealed class GameCardViewModel : ObservableObject
     private ImageSource? _awayLogo;
     private ImageSource? _homeLogo;
     private bool _showLogos;
+    private bool _isFavorite;
+    private bool _showFavoriteBar;
+    private bool _showFavoriteTint;
 
     public GameCardViewModel(long id, LogoService logos)
     {
@@ -68,6 +81,14 @@ public sealed class GameCardViewModel : ObservableObject
     public ImageSource? HomeLogo { get => _homeLogo; private set => SetProperty(ref _homeLogo, value); }
 
     public bool ShowLogos { get => _showLogos; private set => SetProperty(ref _showLogos, value); }
+
+    public bool IsFavorite { get => _isFavorite; private set => SetProperty(ref _isFavorite, value); }
+
+    /// <summary>Accent bar on the left edge of a favorite team's card.</summary>
+    public bool ShowFavoriteBar { get => _showFavoriteBar; private set => SetProperty(ref _showFavoriteBar, value); }
+
+    /// <summary>Tinted background for a favorite team's card.</summary>
+    public bool ShowFavoriteTint { get => _showFavoriteTint; private set => SetProperty(ref _showFavoriteTint, value); }
 
     public string AwayScore { get => _awayScore; private set => SetProperty(ref _awayScore, value); }
 
@@ -115,14 +136,20 @@ public sealed class GameCardViewModel : ObservableObject
     /// <summary>Compact mode: the goal list opens below the card when it is clicked.</summary>
     public bool IsDetailsOpen { get => _isDetailsOpen; set => SetProperty(ref _isDetailsOpen, value); }
 
-    public void Update(HockeyGame game, AppearanceSettings appearance, DateTimeOffset now, TimeZoneInfo localZone, CultureInfo culture)
+    public void Update(HockeyGame game, CardContext context)
     {
+        var appearance = context.Appearance;
+        var culture = context.Culture;
         AwayAbbrev = game.Away.Abbrev;
         HomeAbbrev = game.Home.Abbrev;
-        AwayName = string.IsNullOrWhiteSpace(game.Away.Name) ? game.Away.Abbrev : game.Away.Name;
-        HomeName = string.IsNullOrWhiteSpace(game.Home.Name) ? game.Home.Abbrev : game.Home.Name;
+        AwayName = TeamName(game.Away, context);
+        HomeName = TeamName(game.Home, context);
         Status = game.Status;
-        StatusText = GameStatusFormatter.FormatStatus(game, localZone, now, culture, appearance.ShowGameClock);
+        StatusText = GameStatusFormatter.FormatStatus(game, context.LocalZone, context.Now, culture, appearance.ShowGameClock);
+
+        IsFavorite = GameOrdering.IsFavorite(game, context.Favorites);
+        ShowFavoriteBar = IsFavorite && context.Teams.Highlight is FavoriteHighlight.Bar or FavoriteHighlight.BarAndTint;
+        ShowFavoriteTint = IsFavorite && context.Teams.Highlight == FavoriteHighlight.BarAndTint;
         _gameCenterUrl = game.GameCenterUrl;
 
         HasScore = game.HasScore && !game.Status.IsUpcoming() && !game.Status.IsInactive();
@@ -146,7 +173,7 @@ public sealed class GameCardViewModel : ObservableObject
             if (game.Home.LogoUrl != _homeLogoUrl) _ = LoadLogoAsync(_homeLogoUrl = game.Home.LogoUrl, away: false);
         }
 
-        var localStart = TimeZoneInfo.ConvertTime(game.StartTimeUtc, localZone);
+        var localStart = TimeZoneInfo.ConvertTime(game.StartTimeUtc, context.LocalZone);
         ToolTip = string.Join(Environment.NewLine, new[]
         {
             $"{AwayName} at {HomeName}",
@@ -154,6 +181,14 @@ public sealed class GameCardViewModel : ObservableObject
             HasShots ? $"Shots on goal: {game.Away.ShotsOnGoal} - {game.Home.ShotsOnGoal}" : null,
             HasGoals ? "Click for goal details" : null,
         }.Where(line => line is not null));
+    }
+
+    /// <summary>Full name from the team directory ("Los Angeles Kings"), else what the scoreboard sent.</summary>
+    private static string TeamName(HockeyTeam team, CardContext context)
+    {
+        var known = context.FindTeam(team.Abbrev)?.FullName;
+        if (!string.IsNullOrWhiteSpace(known)) return known;
+        return string.IsNullOrWhiteSpace(team.Name) ? team.Abbrev : team.Name;
     }
 
     internal static GoalLine ToGoalLine(GameGoal goal, int maxRegulationPeriods)
