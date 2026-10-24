@@ -84,6 +84,12 @@
                                  SelectedItem="{Binding RefreshIntervalSeconds}" />
                         <TextBlock Style="{StaticResource Hint}"
                                    Text="Used while games are live. When nothing is live, scores are checked less often until shortly before the next game starts." />
+
+                        <TextBlock Text="Leagues" Style="{StaticResource FieldLabel}" Margin="0,18,0,0" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowLiiga}"
+                                  Content="Also show Finnish Liiga games (own section below the NHL)" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Liiga games get scores, goals, hat tricks, favorites and notifications. Standings, the focus dashboard and player watches are NHL only." />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

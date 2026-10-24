@@ -28,6 +28,9 @@ public sealed class ScorePollingService : IDisposable
     private readonly TimeZoneInfo? _eastern;
     private readonly SemaphoreSlim _wake = new(0, 1);
     private readonly Dictionary<DateOnly, DateCache> _cache = [];
+    private readonly Dictionary<DateOnly, DateCache> _liigaCache = [];
+    private readonly ILiigaClient? _liiga;
+    private readonly Func<bool> _liigaEnabled;
 
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -45,7 +48,9 @@ public sealed class ScorePollingService : IDisposable
         Func<TimeSpan> interval,
         TimeProvider time,
         TimeZoneInfo? localZone = null,
-        TimeZoneInfo? eastern = null)
+        TimeZoneInfo? eastern = null,
+        ILiigaClient? liiga = null,
+        Func<bool>? liigaEnabled = null)
     {
         _api = api;
         _state = state;
@@ -53,6 +58,8 @@ public sealed class ScorePollingService : IDisposable
         _time = time;
         _localZone = localZone ?? TimeZoneInfo.Local;
         _eastern = eastern;
+        _liiga = liiga;
+        _liigaEnabled = liigaEnabled ?? (() => false);
     }
 
     /// <summary>
@@ -147,7 +154,13 @@ public sealed class ScorePollingService : IDisposable
             }
         }
 
-        var byDate = dates.Where(_cache.ContainsKey).ToDictionary(d => d, d => _cache[d].Games);
+        await PollLiigaAsync(dates, now, ct).ConfigureAwait(false);
+
+        var byDate = dates.Where(d => _cache.ContainsKey(d) || _liigaCache.ContainsKey(d)).ToDictionary(
+            d => d,
+            d => (IReadOnlyList<HockeyGame>)(_cache.TryGetValue(d, out var nhl) ? nhl.Games : [])
+                .Concat(_liigaCache.TryGetValue(d, out var liiga) ? liiga.Games : [])
+                .ToList());
         var todayView = BuildTodayView(today, byDate);
 
         TimeSpan delay;
@@ -178,6 +191,36 @@ public sealed class ScorePollingService : IDisposable
             NextRefreshUtc = now + delay,
         });
         return delay;
+    }
+
+    /// <summary>
+    /// Liiga games for the same dates (Liiga plays in Finland, so its calendar date is the hockey day). A Liiga
+    /// failure is logged but never marks the NHL data stale or slows NHL polling down.
+    /// </summary>
+    private async Task PollLiigaAsync(IReadOnlyList<DateOnly> dates, DateTimeOffset now, CancellationToken ct)
+    {
+        if (_liiga is null || !_liigaEnabled())
+        {
+            _liigaCache.Clear();
+            return;
+        }
+
+        foreach (var obsolete in _liigaCache.Keys.Where(d => !dates.Contains(d)).ToList())
+            _liigaCache.Remove(obsolete);
+
+        foreach (var date in dates)
+        {
+            if (_liigaCache.TryGetValue(date, out var cached) && cached.IsSettled) continue;
+            try
+            {
+                var games = await _liiga.GetGamesForDateAsync(date, ct).ConfigureAwait(false);
+                _liigaCache[date] = new DateCache(games, IsSettled(games));
+            }
+            catch (NhlApiException ex)
+            {
+                Log.Warn($"Liiga {date:yyyy-MM-dd} failed: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>Yesterday and today (NHL dates), plus the date the user is currently viewing, if any.</summary>

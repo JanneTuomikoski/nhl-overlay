@@ -145,7 +145,7 @@ public sealed class TeamDirectoryService : IDisposable
         {
             // The first snapshot only records a baseline; finals that already existed are not "new".
             var baseline = !_seenFirstSnapshot;
-            foreach (var game in snapshot.Games.Where(g => g.Status.IsFinal()))
+            foreach (var game in snapshot.Games.Where(g => g.IsNhl && g.Status.IsFinal()))
                 newFinal |= _knownFinals.Add(game.Id) && !baseline;
             _seenFirstSnapshot = true;
         }

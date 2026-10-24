@@ -7,103 +7,106 @@
              xmlns:controls="clr-namespace:NHLOverlay.Controls"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
-    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardDividerBrush}" ToolTip="{Binding ToolTip}">
-        <Grid Style="{StaticResource FavoriteCardBackground}">
-            <Rectangle Style="{StaticResource FavoriteBar}" />
-            <StackPanel Margin="12,8,12,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" MinWidth="34" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+    <StackPanel>
+        <TextBlock Text="{Binding SectionTitle}" Style="{StaticResource LeagueHeader}" />
+        <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardDividerBrush}" ToolTip="{Binding ToolTip}">
+            <Grid Style="{StaticResource FavoriteCardBackground}">
+                <Rectangle Style="{StaticResource FavoriteBar}" />
+                <StackPanel Margin="12,8,12,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" MinWidth="34" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <!-- Away -->
-                    <Image Grid.Row="0" Source="{Binding AwayLogo}" Width="30" Height="30" Margin="0,2,10,2"
-                           Style="{StaticResource TeamLogo}" />
-                    <TextBlock Grid.Row="0" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource AwayTeamText}">
-                                <Setter Property="Text" Value="{Binding AwayShortName}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding UseFullNames, RelativeSource={RelativeSource AncestorType=controls:ExpandedGameCard}}" Value="True">
-                                        <Setter Property="Text" Value="{Binding AwayName}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding AwayShots, StringFormat='{}{0} SOG'}" FontSize="11"
-                               Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
-                               Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding AwayScore}" FontSize="22" FontWeight="Bold"
-                               TextAlignment="Right" Style="{StaticResource AwayTeamText}" />
-
-                    <!-- Home -->
-                    <Image Grid.Row="1" Source="{Binding HomeLogo}" Width="30" Height="30" Margin="0,2,10,2"
-                           Style="{StaticResource TeamLogo}" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource HomeTeamText}">
-                                <Setter Property="Text" Value="{Binding HomeShortName}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding UseFullNames, RelativeSource={RelativeSource AncestorType=controls:ExpandedGameCard}}" Value="True">
-                                        <Setter Property="Text" Value="{Binding HomeName}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding HomeShots, StringFormat='{}{0} SOG'}" FontSize="11"
-                               Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
-                               Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding HomeScore}" FontSize="22" FontWeight="Bold"
-                               TextAlignment="Right" Style="{StaticResource HomeTeamText}" />
-                </Grid>
-
-                <DockPanel Margin="0,4,0,0">
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
-                                Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window},
-                                                     Converter={StaticResource BoolToVisibility}}">
-                        <Button Command="{Binding ToggleShieldCommand}" ToolTip="{Binding ShieldActionLabel}"
-                                AutomationProperties.Name="{Binding ShieldActionLabel}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
-                                    <Setter Property="Content" Value="&#xED1A;" />
+                        <!-- Away -->
+                        <Image Grid.Row="0" Source="{Binding AwayLogo}" Width="30" Height="30" Margin="0,2,10,2"
+                               Style="{StaticResource TeamLogo}" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource AwayTeamText}">
+                                    <Setter Property="Text" Value="{Binding AwayShortName}" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsShielded}" Value="True">
-                                            <Setter Property="Content" Value="&#xE890;" />
+                                        <DataTrigger Binding="{Binding UseFullNames, RelativeSource={RelativeSource AncestorType=controls:ExpandedGameCard}}" Value="True">
+                                            <Setter Property="Text" Value="{Binding AwayName}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </Button.Style>
-                        </Button>
-                        <Button Style="{StaticResource IconButton}" Content="&#xE9D9;" Margin="2,0,0,0"
-                                ToolTip="Live dashboard: strength, shots, shot map and play-by-play" AutomationProperties.Name="Open focus dashboard"
-                                Command="{Binding FocusCommand}" />
-                        <Button Style="{StaticResource IconButton}" Content="&#xE8A7;" Margin="2,0,0,0"
-                                ToolTip="Open the NHL game page" AutomationProperties.Name="Open game page"
-                                Command="{Binding OpenGameCenterCommand}" />
-                    </StackPanel>
-                    <TextBlock Text="{Binding StatusText}" FontSize="12.5" VerticalAlignment="Center" Style="{StaticResource GameStatusText}" />
-                </DockPanel>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding AwayShots, StringFormat='{}{0} SOG'}" FontSize="11"
+                                   Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
+                                   Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding AwayScore}" FontSize="22" FontWeight="Bold"
+                                   TextAlignment="Right" Style="{StaticResource AwayTeamText}" />
 
-                <TextBlock Text="{Binding HatTrickTextLong}" FontSize="12.5" Margin="0,5,0,0" Style="{StaticResource HatTrickText}" />
+                        <!-- Home -->
+                        <Image Grid.Row="1" Source="{Binding HomeLogo}" Width="30" Height="30" Margin="0,2,10,2"
+                               Style="{StaticResource TeamLogo}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource HomeTeamText}">
+                                    <Setter Property="Text" Value="{Binding HomeShortName}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding UseFullNames, RelativeSource={RelativeSource AncestorType=controls:ExpandedGameCard}}" Value="True">
+                                            <Setter Property="Text" Value="{Binding HomeName}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding HomeShots, StringFormat='{}{0} SOG'}" FontSize="11"
+                                   Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
+                                   Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding HomeScore}" FontSize="22" FontWeight="Bold"
+                                   TextAlignment="Right" Style="{StaticResource HomeTeamText}" />
+                    </Grid>
 
-                <TextBlock Text="{Binding CountryTextLong}" FontSize="12" Margin="0,5,0,0" Style="{StaticResource CountryText}"
-                           Visibility="{Binding HasCountryTextLong, Converter={StaticResource BoolToVisibility}}" />
+                    <DockPanel Margin="0,4,0,0">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window},
+                                                         Converter={StaticResource BoolToVisibility}}">
+                            <Button Command="{Binding ToggleShieldCommand}" ToolTip="{Binding ShieldActionLabel}"
+                                    AutomationProperties.Name="{Binding ShieldActionLabel}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                        <Setter Property="Content" Value="&#xED1A;" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsShielded}" Value="True">
+                                                <Setter Property="Content" Value="&#xE890;" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Style="{StaticResource IconButton}" Content="&#xE9D9;" Margin="2,0,0,0"
+                                    ToolTip="Live dashboard: strength, shots, shot map and play-by-play" AutomationProperties.Name="Open focus dashboard"
+                                    Command="{Binding FocusCommand}" />
+                            <Button Style="{StaticResource IconButton}" Content="&#xE8A7;" Margin="2,0,0,0"
+                                    ToolTip="Open the NHL game page" AutomationProperties.Name="Open game page"
+                                    Command="{Binding OpenGameCenterCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding StatusText}" FontSize="12.5" VerticalAlignment="Center" Style="{StaticResource GameStatusText}" />
+                    </DockPanel>
 
-                <TextBlock Text="{Binding WatchText}" FontSize="12" Margin="0,5,0,0" Style="{StaticResource WatchText}"
-                           Visibility="{Binding HasWatchText, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="{Binding HatTrickTextLong}" FontSize="12.5" Margin="0,5,0,0" Style="{StaticResource HatTrickText}" />
 
-                <controls:GoalList FontSize="12" Margin="0,6,0,0"
-                                   Visibility="{Binding HasGoals, Converter={StaticResource BoolToVisibility}}" />
-            </StackPanel>
-        </Grid>
-    </Border>
+                    <TextBlock Text="{Binding CountryTextLong}" FontSize="12" Margin="0,5,0,0" Style="{StaticResource CountryText}"
+                               Visibility="{Binding HasCountryTextLong, Converter={StaticResource BoolToVisibility}}" />
+
+                    <TextBlock Text="{Binding WatchText}" FontSize="12" Margin="0,5,0,0" Style="{StaticResource WatchText}"
+                               Visibility="{Binding HasWatchText, Converter={StaticResource BoolToVisibility}}" />
+
+                    <controls:GoalList FontSize="12" Margin="0,6,0,0"
+                                       Visibility="{Binding HasGoals, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </StackPanel>
 </UserControl>

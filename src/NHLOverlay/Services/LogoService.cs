@@ -25,7 +25,7 @@ public sealed class LogoService : IDisposable
     {
         _cacheDirectory = cacheDirectory;
         _http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        _convert = convert ?? ConvertSvg;
+        _convert = convert ?? Convert;
     }
 
     /// <summary>Must be called on the UI thread; concurrent requests for the same logo share one task.</summary>
@@ -90,6 +90,44 @@ public sealed class LogoService : IDisposable
             Log.Warn($"Downloading logo {url} failed: {ex.Message}");
             // An expired cached copy is still better than nothing.
             return info.Exists && info.Length > 0 ? path : null;
+        }
+    }
+
+    /// <summary>SVG (NHL) is converted to a vector drawing; anything else (Liiga's WebP/PNG) is decoded as a bitmap.</summary>
+    private static ImageSource? Convert(string path) => IsSvg(path) ? ConvertSvg(path) : ConvertBitmap(path);
+
+    internal static bool IsSvg(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var buffer = new byte[64];
+            var read = stream.Read(buffer, 0, buffer.Length);
+            var head = System.Text.Encoding.UTF8.GetString(buffer, 0, read).TrimStart('﻿', ' ', '\r', '\n', '\t');
+            return head.StartsWith('<');
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private static ImageSource? ConvertBitmap(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            // WebP needs the Windows WebP codec (built in on current Windows 10/11).
+            var decoder = System.Windows.Media.Imaging.BitmapDecoder.Create(
+                stream, System.Windows.Media.Imaging.BitmapCreateOptions.None, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
+            var frame = decoder.Frames[0];
+            frame.Freeze();
+            return frame;
+        }
+        catch (Exception ex) when (ex is NotSupportedException or IOException or FileFormatException or InvalidOperationException)
+        {
+            Log.Warn($"Could not decode logo {path}.", ex);
+            return null;
         }
     }
 

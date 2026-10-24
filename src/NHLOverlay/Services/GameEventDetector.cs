@@ -99,7 +99,7 @@ public sealed class GameEventDetector
     /// <summary>A new goal scored or assisted by a watched-country player.</summary>
     private void DetectCountryPoints(HockeyGame game, GameGoal goal, IReadOnlyList<GameGoal> goals, string goalKey, List<GameEvent> events)
     {
-        if (_findPlayer is null || _countries is not { Count: > 0 }) return;
+        if (_findPlayer is null || _countries is not { Count: > 0 } || !game.IsNhl) return; // rosters are NHL data
         var involved = new[] { (goal.PlayerId, IsGoal: true) }.Concat(goal.Assists.Select(a => (a.PlayerId, IsGoal: false)));
         foreach (var (playerId, isGoal) in involved)
         {

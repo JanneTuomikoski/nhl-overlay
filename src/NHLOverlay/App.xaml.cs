@@ -17,6 +17,7 @@ public partial class App : Application
     private Mutex? _singleInstance;
     private SettingsService? _settings;
     private NhlApiService? _api;
+    private LiigaApiService? _liiga;
     private LogoService? _logos;
     private TeamDirectoryService? _teams;
     private RosterService? _rosters;
@@ -69,11 +70,14 @@ public partial class App : Application
         _state = new GameStateService();
         _api = new NhlApiService();
         _logos = new LogoService(Path.Combine(_settings.CacheDirectory, "logos"));
+        _liiga = new LiigaApiService();
         _polling = new ScorePollingService(
             _api,
             _state,
             () => TimeSpan.FromSeconds(_settings.Current.General.RefreshIntervalSeconds),
-            TimeProvider.System);
+            TimeProvider.System,
+            liiga: _liiga,
+            liigaEnabled: () => _settings.Current.General.ShowLiiga);
         _teams = new TeamDirectoryService(_api, _settings.CacheDirectory, TimeProvider.System);
         _teams.Start(_state);
         _rosters = new RosterService(_api, _settings.CacheDirectory, TimeProvider.System);
@@ -271,6 +275,7 @@ public partial class App : Application
         _focus?.Dispose();
         _playerStats?.Dispose();
         _api?.Dispose();
+        _liiga?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();
         _foreground?.Dispose();

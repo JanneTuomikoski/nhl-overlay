@@ -311,9 +311,14 @@ public sealed class OverlayViewModel : ObservableObject
 
         // The filter applies to the today view only; browsing other days always shows every game.
         var filter = _dayOffset == 0 ? settings.Teams.Filter : GameFilter.All;
+        // NHL first, then Liiga; each league sorted on its own.
         var visible = source is null
             ? []
-            : GameOrdering.Sort(GameOrdering.Filter(source, filter, favorites, g => context.HatTricksFor(g).Count > 0), favorites, settings.Teams.SortOrder);
+            : GameOrdering.Filter(source, filter, favorites, g => context.HatTricksFor(g).Count > 0)
+                .GroupBy(g => g.League)
+                .OrderBy(g => g.Key)
+                .SelectMany(g => GameOrdering.Sort(g, favorites, settings.Teams.SortOrder))
+                .ToList();
         SyncCards(visible, context);
         UpdateCountryPanel(source ?? [], Watched, settings.CountryWatch);
         UpdateRecap(snapshot, culture);
@@ -336,7 +341,8 @@ public sealed class OverlayViewModel : ObservableObject
                 : "NHL scores unavailable.",
             (_, null) => "Loading...",
             _ when Games.Count == 0 && source.Count > 0 => $"No games match the filter: {GameOrdering.Describe(filter).ToLowerInvariant()}.",
-            _ when Games.Count == 0 => _dayOffset == 0 ? "No NHL games today." : $"No NHL games on {DayLabel.ToLowerInvariant()}.",
+            _ when Games.Count == 0 =>
+                $"No {(settings.General.ShowLiiga ? "games" : "NHL games")} {(_dayOffset == 0 ? "today" : "on " + DayLabel.ToLowerInvariant())}.",
             _ => null,
         };
 
@@ -424,6 +430,11 @@ public sealed class OverlayViewModel : ObservableObject
             }
 
             card.Update(game, context);
+            // Section headers only when both leagues are on screen.
+            var bothLeagues = ordered.Any(g => g.League != ordered[0].League);
+            card.SectionTitle = bothLeagues && (i == 0 || ordered[i - 1].League != game.League)
+                ? game.League == League.Nhl ? "NHL" : "LIIGA"
+                : null;
             var index = Games.IndexOf(card);
             if (index < 0) Games.Insert(i, card);
             else if (index != i) Games.Move(index, i);

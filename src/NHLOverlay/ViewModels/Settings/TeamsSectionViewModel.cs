@@ -80,6 +80,9 @@ public sealed class TeamsSectionViewModel : ObservableObject, ISettingsSection
             .ToList();
         foreach (var team in groups.SelectMany(g => g.Teams))
             _ = LoadLogoAsync(team, teams.Find(team.Abbrev)?.LogoUrl, logos);
+
+        // Liiga teams (used when Liiga is switched on in General); their logos come with the game data.
+        groups.Add(new TeamGroup("Liiga", LiigaTeams.All.Select(t => new TeamChoiceViewModel(t.Abbrev, t.Name)).ToList()));
         return groups;
     }
 

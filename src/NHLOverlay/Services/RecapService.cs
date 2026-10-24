@@ -48,7 +48,7 @@ public sealed class RecapService
         };
         if (!show || !snapshot.GamesByDate.TryGetValue(lastNight, out var games)) return null;
 
-        foreach (var shutout in games.Where(g => g.Status.IsFinal() && (g.Away.Score == 0 || g.Home.Score == 0)))
+        foreach (var shutout in games.Where(g => g.IsNhl && g.Status.IsFinal() && (g.Away.Score == 0 || g.Home.Score == 0)))
             _boxscores.Request(shutout);
 
         var recap = RecapBuilder.Build(

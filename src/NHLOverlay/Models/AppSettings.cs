@@ -148,6 +148,9 @@ public sealed class GeneralSettings
 
     public int RefreshIntervalSeconds { get; set; } = 30;
 
+    /// <summary>Also show Finnish Liiga games, in their own section below the NHL games.</summary>
+    public bool ShowLiiga { get; set; }
+
     internal GeneralSettings Normalize()
     {
         // Snap to the closest supported interval.

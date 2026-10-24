@@ -506,6 +506,20 @@
         </Style.Triggers>
     </Style>
 
+    <!-- "NHL" / "LIIGA" section header above a league's first card. -->
+    <Style x:Key="LeagueHeader" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="Margin" Value="10,8,10,2" />
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding HasSectionTitle}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="WatchText" TargetType="TextBlock">
         <Setter Property="Foreground" Value="#7EE0B5" />
         <Setter Property="FontWeight" Value="SemiBold" />

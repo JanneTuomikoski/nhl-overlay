@@ -1,10 +1,20 @@
 namespace NHLOverlay.Models;
 
-/// <summary>Strongly typed snapshot of a single NHL game.</summary>
+public enum League
+{
+    Nhl,
+    Liiga,
+}
+
+/// <summary>Strongly typed snapshot of a single game (NHL, or Liiga when enabled).</summary>
 public sealed record HockeyGame
 {
-    /// <summary>Stable NHL game id, e.g. 2026020169.</summary>
+    /// <summary>Stable game id within its league, e.g. NHL 2026020169.</summary>
     public long Id { get; init; }
+
+    public League League { get; init; } = League.Nhl;
+
+    public bool IsNhl => League == League.Nhl;
 
     /// <summary>1 = preseason, 2 = regular season, 3 = playoffs.</summary>
     public int GameType { get; init; }

@@ -55,8 +55,9 @@ public sealed class RosterService : IDisposable
         var token = _cts.Token;
         _ = Task.Run(() => RunAsync(token));
         state.Changed += (_, snapshot) => Ensure(snapshot.GamesByDate.Values.SelectMany(g => g).Concat(snapshot.Games)
+            .Where(g => g.IsNhl)
             .SelectMany(g => new[] { g.Away.Abbrev, g.Home.Abbrev }));
-        Ensure(state.Current.Games.SelectMany(g => new[] { g.Away.Abbrev, g.Home.Abbrev }));
+        Ensure(state.Current.Games.Where(g => g.IsNhl).SelectMany(g => new[] { g.Away.Abbrev, g.Home.Abbrev }));
     }
 
     /// <summary>Queues every team whose roster is missing or older than <see cref="MaxAge"/>.</summary>

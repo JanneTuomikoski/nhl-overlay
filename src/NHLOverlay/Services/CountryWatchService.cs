@@ -41,14 +41,15 @@ public sealed class CountryWatchService
         }
     }
 
+    /// <summary>Watched players in an NHL game (rosters and boxscores are NHL data; Liiga games return none).</summary>
     public IReadOnlyList<WatchedPlayer> PlayersFor(HockeyGame game) =>
-        CountryWatch.ForGame(game, Countries, _rosters.Team, _boxscores.Get);
+        game.IsNhl ? CountryWatch.ForGame(game, Countries, _rosters.Team, _boxscores.Get) : [];
 
     private void RequestGoalieBoxscores(ScoreboardSnapshot snapshot)
     {
         var countries = Countries;
         if (countries.Count == 0) return;
-        foreach (var game in snapshot.Games.Where(g => g.Status.IsInProgress() || g.Status.IsFinal()))
+        foreach (var game in snapshot.Games.Where(g => g.IsNhl && (g.Status.IsInProgress() || g.Status.IsFinal())))
         {
             if (CountryWatch.HasWatchedGoalie(game, countries, _rosters.Team))
                 _boxscores.Request(game);

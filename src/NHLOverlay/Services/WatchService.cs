@@ -52,6 +52,7 @@ public sealed class WatchService
     /// <summary>Card lines: shutout watch and players close to a milestone. UI thread.</summary>
     public IReadOnlyList<string> CardLines(HockeyGame game)
     {
+        if (!game.IsNhl) return []; // career stats and boxscores are NHL data
         var watch = _settings.Current.PlayerWatch;
         var lines = new List<string>();
         if (watch.ShutoutWatch && ShutoutTracker.CardLine(game, _boxscores.Get(game.Id)) is { } shutout)
@@ -68,7 +69,7 @@ public sealed class WatchService
         var events = new List<GameEvent>();
         lock (_gate)
         {
-            var games = snapshot.Games;
+            var games = snapshot.Games.Where(g => g.IsNhl).ToList();
 
             if (settings.Milestones || settings.PointStreaks)
             {

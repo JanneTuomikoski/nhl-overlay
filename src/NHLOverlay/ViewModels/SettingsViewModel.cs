@@ -27,6 +27,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private bool _launchWithWindows;
     private bool _showOverlayOnStartup;
     private int _refreshIntervalSeconds;
+    private bool _showLiiga;
     private DisplayMode _displayMode;
     private double _backgroundOpacityPercent;
     private double _uiScalePercent;
@@ -112,6 +113,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     public int RefreshIntervalSeconds { get => _refreshIntervalSeconds; set => SetProperty(ref _refreshIntervalSeconds, value); }
 
+    public bool ShowLiiga { get => _showLiiga; set => SetProperty(ref _showLiiga, value); }
+
     // Appearance
     public IReadOnlyList<DisplayMode> DisplayModes { get; } = Enum.GetValues<DisplayMode>();
 
@@ -180,6 +183,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         LaunchWithWindows = s.General.LaunchWithWindows;
         ShowOverlayOnStartup = s.General.ShowOverlayOnStartup;
         RefreshIntervalSeconds = s.General.RefreshIntervalSeconds;
+        ShowLiiga = s.General.ShowLiiga;
         DisplayMode = s.Appearance.DisplayMode;
         BackgroundOpacityPercent = s.Appearance.BackgroundOpacity * 100;
         UiScalePercent = s.Appearance.UiScale * 100;
@@ -204,6 +208,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             s.General.LaunchWithWindows = LaunchWithWindows;
             s.General.ShowOverlayOnStartup = ShowOverlayOnStartup;
             s.General.RefreshIntervalSeconds = RefreshIntervalSeconds;
+            s.General.ShowLiiga = ShowLiiga;
             s.Appearance.DisplayMode = DisplayMode;
             s.Appearance.BackgroundOpacity = BackgroundOpacityPercent / 100;
             s.Appearance.UiScale = UiScalePercent / 100;

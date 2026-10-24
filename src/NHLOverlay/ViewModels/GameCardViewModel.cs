@@ -105,8 +105,23 @@ public sealed class GameCardViewModel : ObservableObject
         ToggleDetailsCommand = new RelayCommand(() => IsDetailsOpen = !IsDetailsOpen);
         OpenGameCenterCommand = new RelayCommand(OpenGameCenter, () => _gameCenterUrl is not null);
         ToggleShieldCommand = new RelayCommand(() => setShielded?.Invoke(Id, !IsShielded), () => setShielded is not null);
-        FocusCommand = new RelayCommand(() => openFocus?.Invoke(Id), () => openFocus is not null);
+        FocusCommand = new RelayCommand(() => openFocus?.Invoke(Id), () => openFocus is not null && _isNhl);
     }
+
+    private bool _isNhl = true;
+    private string? _sectionTitle;
+
+    /// <summary>"NHL" / "LIIGA" above the first card of a league when both leagues are shown.</summary>
+    public string? SectionTitle
+    {
+        get => _sectionTitle;
+        set
+        {
+            if (SetProperty(ref _sectionTitle, value)) OnPropertyChanged(nameof(HasSectionTitle));
+        }
+    }
+
+    public bool HasSectionTitle => SectionTitle is not null;
 
     /// <summary>Opens this game in the focus dashboard window.</summary>
     public ICommand FocusCommand { get; }
@@ -265,6 +280,7 @@ public sealed class GameCardViewModel : ObservableObject
     {
         var appearance = context.Appearance;
         var culture = context.Culture;
+        _isNhl = game.IsNhl; // the focus dashboard uses NHL play-by-play
         AwayAbbrev = game.Away.Abbrev;
         HomeAbbrev = game.Home.Abbrev;
         AwayName = TeamName(game.Away, context);
