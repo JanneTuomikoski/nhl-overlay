@@ -27,6 +27,7 @@ public sealed class OverlayViewModel : ObservableObject
     private readonly SettingsService _settings;
     private readonly LogoService _logos;
     private readonly TeamDirectoryService _teams;
+    private readonly RuntimeState _runtime;
     private readonly Action<DateOnly?> _requestDate;
     private readonly DispatcherTimer _returnToToday;
     private readonly Dictionary<long, GameCardViewModel> _cards = [];
@@ -37,6 +38,9 @@ public sealed class OverlayViewModel : ObservableObject
     private bool _isInteractive;
     private bool _isExpanded;
     private bool _isLocked;
+    private bool _toastsAtBottom;
+    private bool _isDoNotDisturb;
+    private bool _isGaming;
     private ConnectionState _connection;
     private string _statusText = "";
     private string _statusToolTip = "";
@@ -48,13 +52,22 @@ public sealed class OverlayViewModel : ObservableObject
         SettingsService settings,
         LogoService logos,
         TeamDirectoryService teams,
+        RuntimeState runtime,
+        ToastService toasts,
         Action<DateOnly?> requestDate,
         Dispatcher dispatcher)
     {
         _settings = settings;
         _logos = logos;
         _teams = teams;
+        _runtime = runtime;
+        Toasts = toasts.Toasts;
         teams.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
+        runtime.Changed += (_, _) =>
+        {
+            ApplySettings();
+            Apply(_snapshot);
+        };
         _requestDate = requestDate;
         _returnToToday = new DispatcherTimer(DispatcherPriority.Normal, dispatcher) { Interval = ReturnToTodayAfter };
         _returnToToday.Tick += (_, _) => SetDayOffset(0);
@@ -76,6 +89,17 @@ public sealed class OverlayViewModel : ObservableObject
     }
 
     public ObservableCollection<GameCardViewModel> Games { get; } = [];
+
+    /// <summary>Notification toasts shown inside the overlay (newest first).</summary>
+    public ObservableCollection<ToastViewModel> Toasts { get; }
+
+    public bool ToastsAtBottom { get => _toastsAtBottom; private set => SetProperty(ref _toastsAtBottom, value); }
+
+    /// <summary>Header badge: alerts are being held.</summary>
+    public bool IsDoNotDisturb { get => _isDoNotDisturb; private set => SetProperty(ref _isDoNotDisturb, value); }
+
+    /// <summary>Header badge: the gaming profile is active.</summary>
+    public bool IsGaming { get => _isGaming; private set => SetProperty(ref _isGaming, value); }
 
     public ICommand PreviousDayCommand { get; }
 
@@ -144,9 +168,12 @@ public sealed class OverlayViewModel : ObservableObject
         var s = _settings.Current;
         BackgroundOpacity = s.Appearance.BackgroundOpacity;
         UiScale = s.Appearance.UiScale;
-        IsExpanded = s.Appearance.DisplayMode == DisplayMode.Expanded;
-        IsInteractive = !s.Window.ClickThrough;
+        IsExpanded = _runtime.EffectiveDisplayMode(s) == DisplayMode.Expanded;
+        IsInteractive = !_runtime.EffectiveClickThrough(s);
         IsLocked = s.Window.LockPosition;
+        ToastsAtBottom = s.Notifications.Placement == ToastPlacement.Bottom;
+        IsDoNotDisturb = _runtime.DoNotDisturb;
+        IsGaming = _runtime.IsGaming;
     }
 
     private void Apply(ScoreboardSnapshot snapshot)

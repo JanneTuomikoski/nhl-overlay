@@ -21,6 +21,12 @@ public partial class App : Application
     private TeamDirectoryService? _teams;
     private ScorePollingService? _polling;
     private GameStateService? _state;
+    private RuntimeState? _runtime;
+    private ToastService? _toasts;
+    private SoundService? _sounds;
+    private SpeechService? _speech;
+    private NotificationService? _notifications;
+    private ForegroundWatcher? _foreground;
     private HotkeyService? _hotkeys;
     private OverlayWindow? _overlay;
     private TrayIcon? _tray;
@@ -52,6 +58,7 @@ public partial class App : Application
 
         _settings.Load();
 
+        // Data
         _state = new GameStateService();
         _api = new NhlApiService();
         _logos = new LogoService(Path.Combine(_settings.CacheDirectory, "logos"));
@@ -63,25 +70,45 @@ public partial class App : Application
         _teams = new TeamDirectoryService(_api, _settings.CacheDirectory, TimeProvider.System);
         _teams.Start(_state);
 
-        var overlayViewModel = new OverlayViewModel(_state, _settings, _logos, _teams, _polling.SetViewedDate, Dispatcher);
-        _overlay = new OverlayWindow(overlayViewModel, _settings);
+        // Session state and notifications
+        _runtime = new RuntimeState();
+        _toasts = new ToastService(Dispatcher);
+        _sounds = new SoundService();
+        _speech = new SpeechService();
+        _tray = new TrayIcon();
+        _notifications = new NotificationService(_state, _settings, _runtime, _toasts, _sounds, _speech, _tray.ShowNotification, Dispatcher);
+
+        // Overlay
+        var overlayViewModel = new OverlayViewModel(_state, _settings, _logos, _teams, _runtime, _toasts, _polling.SetViewedDate, Dispatcher);
+        _overlay = new OverlayWindow(overlayViewModel, _settings, _runtime);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);
 
-        _tray = new TrayIcon();
+        // Tray
         _tray.ToggleOverlayRequested += (_, _) => ToggleOverlay();
         _tray.ToggleInteractionRequested += (_, _) => ToggleInteraction();
         _tray.ToggleDisplayModeRequested += (_, _) => _settings.Update(s =>
             s.Appearance.DisplayMode = s.Appearance.DisplayMode == DisplayMode.Compact ? DisplayMode.Expanded : DisplayMode.Compact);
+        _tray.ToggleDoNotDisturbRequested += (_, _) => ToggleDoNotDisturb();
         _tray.RefreshRequested += (_, _) => _polling.RequestRefresh();
         _tray.SettingsRequested += (_, _) => ShowSettings();
         _tray.ExitRequested += (_, _) => Shutdown();
-        _settings.Changed += (_, s) => Dispatcher.InvokeAsync(() => SyncTray(s));
-        SyncTray(_settings.Current);
+        _settings.Changed += (_, s) => Dispatcher.InvokeAsync(() =>
+        {
+            SyncTray();
+            UpdateGaming(_foreground?.CurrentProcess);
+        });
+        _runtime.Changed += (_, _) => SyncTray();
+        SyncTray();
+
+        // Game detection (foreground window changes)
+        _foreground = new ForegroundWatcher();
+        _foreground.ForegroundChanged += (_, process) => UpdateGaming(process);
+        UpdateGaming(_foreground.CurrentProcess);
 
         // The hotkeys need a window handle even while the overlay starts hidden.
         var hwnd = _overlay.EnsureHandle();
-        _hotkeys = new HotkeyService(hwnd, _settings, ToggleOverlay, ToggleInteraction);
+        _hotkeys = new HotkeyService(hwnd, _settings, ToggleOverlay, ToggleInteraction, ToggleDoNotDisturb);
 
         if (_settings.Current.General.ShowOverlayOnStartup)
             _overlay.Show();
@@ -90,14 +117,28 @@ public partial class App : Application
         _polling.Start();
     }
 
-    private void SyncTray(AppSettings s)
+    private void SyncTray()
     {
-        _tray?.SetInteractionMode(!s.Window.ClickThrough);
-        _tray?.SetExpanded(s.Appearance.DisplayMode == DisplayMode.Expanded);
-        _tray?.SetFilterChoices(Enum.GetValues<GameFilter>().Select(filter => (
+        if (_tray is null || _settings is null || _runtime is null) return;
+        var s = _settings.Current;
+        _tray.SetInteractionMode(!_runtime.EffectiveClickThrough(s));
+        _tray.SetExpanded(s.Appearance.DisplayMode == DisplayMode.Expanded);
+        _tray.SetDoNotDisturb(_runtime.DoNotDisturb);
+        _tray.SetFilterChoices(Enum.GetValues<GameFilter>().Select(filter => (
             GameOrdering.Describe(filter),
             filter == s.Teams.Filter,
-            (Action)(() => _settings?.Update(x => x.Teams.Filter = filter)))));
+            (Action)(() => _settings.Update(x => x.Teams.Filter = filter)))));
+    }
+
+    /// <summary>Activates the gaming profile while one of the configured games is in the foreground.</summary>
+    private void UpdateGaming(string? process)
+    {
+        if (_settings is null || _runtime is null) return;
+        var gaming = _settings.Current.Gaming;
+        var isGame = gaming.Enabled && process is not null
+                     && gaming.GameProcesses.Contains(process, StringComparer.OrdinalIgnoreCase);
+        if (isGame != _runtime.IsGaming) Log.Info(isGame ? $"Gaming profile on ({process})." : "Gaming profile off.");
+        _runtime.SetGaming(isGame, isGame ? process : null);
     }
 
     private void ToggleOverlay()
@@ -107,13 +148,34 @@ public partial class App : Application
         else _overlay.Show();
     }
 
-    /// <summary>Switches between click-through and interaction mode. Entering interaction mode also shows the overlay.</summary>
+    /// <summary>
+    /// Switches between click-through and interaction mode. While the gaming profile forces click-through,
+    /// this only overrides it for the current session; otherwise it changes the setting. Entering interaction
+    /// mode also shows the overlay.
+    /// </summary>
     private void ToggleInteraction()
     {
-        if (_settings is null || _overlay is null) return;
-        var interactive = _settings.Current.Window.ClickThrough;
-        _settings.Update(s => s.Window.ClickThrough = !interactive);
-        if (interactive && !_overlay.IsVisible) _overlay.Show();
+        if (_settings is null || _overlay is null || _runtime is null) return;
+        var s = _settings.Current;
+        var clickThrough = _runtime.EffectiveClickThrough(s);
+        if (_runtime.GamingForcesClickThrough(s))
+        {
+            _runtime.ClickThroughOverride = !clickThrough;
+        }
+        else
+        {
+            _runtime.ClickThroughOverride = null;
+            _settings.Update(x => x.Window.ClickThrough = !clickThrough);
+        }
+
+        if (clickThrough && !_overlay.IsVisible) _overlay.Show();
+    }
+
+    private void ToggleDoNotDisturb()
+    {
+        if (_runtime is null) return;
+        _runtime.DoNotDisturb = !_runtime.DoNotDisturb;
+        Log.Info(_runtime.DoNotDisturb ? "Do not disturb on." : "Do not disturb off.");
     }
 
     private void ShowSettings()
@@ -126,7 +188,8 @@ public partial class App : Application
             return;
         }
 
-        var viewModel = new SettingsViewModel(_settings!, _state!, _hotkeys!, _teams!, _logos!, () => _polling?.RequestRefresh(), Dispatcher);
+        var viewModel = new SettingsViewModel(
+            _settings!, _state!, _hotkeys!, _teams!, _logos!, _notifications!, _speech!, () => _polling?.RequestRefresh(), Dispatcher);
         _settingsWindow = new SettingsWindow(viewModel);
         _settingsWindow.Closed += (_, _) =>
         {
@@ -154,6 +217,9 @@ public partial class App : Application
         _api?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();
+        _foreground?.Dispose();
+        _speech?.Dispose();
+        _sounds?.Dispose();
         if (_overlay is not null)
         {
             _overlay.AllowClose = true;

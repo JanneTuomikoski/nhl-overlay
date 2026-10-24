@@ -27,6 +27,7 @@ public partial class OverlayWindow : Window
     private const double ScaleStep = 0.1;
 
     private readonly SettingsService _settings;
+    private readonly RuntimeState _runtime;
     private readonly DispatcherTimer _savePositionTimer;
     private readonly DispatcherTimer _topmostTimer;
     private IntPtr _hwnd;
@@ -34,11 +35,13 @@ public partial class OverlayWindow : Window
     private bool _resizing;
     private bool _rendered; // before the first render the window can still have the default (huge) size
 
-    public OverlayWindow(OverlayViewModel viewModel, SettingsService settings)
+    public OverlayWindow(OverlayViewModel viewModel, SettingsService settings, RuntimeState runtime)
     {
         InitializeComponent();
         DataContext = viewModel;
         _settings = settings;
+        _runtime = runtime;
+        runtime.Changed += (_, _) => ApplyWindowSettings(_settings.Current);
         Root.Width = settings.Current.Window.Width;
 
         // Debounce position saves while the window moves.
@@ -122,7 +125,7 @@ public partial class OverlayWindow : Window
         if (!_resizing) Root.Width = s.Window.Width;
         Topmost = s.Window.AlwaysOnTop;
         if (_hwnd == IntPtr.Zero) return;
-        NativeMethods.SetExtendedStyle(_hwnd, NativeMethods.WsExTransparent, s.Window.ClickThrough);
+        NativeMethods.SetExtendedStyle(_hwnd, NativeMethods.WsExTransparent, _runtime.EffectiveClickThrough(s));
         ApplyPosition(s.Window);
     }
 

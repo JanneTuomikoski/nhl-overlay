@@ -11,10 +11,12 @@ public sealed class TrayIcon : IDisposable
     private readonly Forms.ToolStripMenuItem _interactionItem;
     private readonly Forms.ToolStripMenuItem _expandedItem;
     private readonly Forms.ToolStripMenuItem _filterItem;
+    private readonly Forms.ToolStripMenuItem _doNotDisturbItem;
 
     public event EventHandler? ToggleOverlayRequested;
     public event EventHandler? ToggleInteractionRequested;
     public event EventHandler? ToggleDisplayModeRequested;
+    public event EventHandler? ToggleDoNotDisturbRequested;
     public event EventHandler? RefreshRequested;
     public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
@@ -34,6 +36,8 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(_expandedItem);
         _filterItem = new Forms.ToolStripMenuItem("Show");
         menu.Items.Add(_filterItem);
+        _doNotDisturbItem = new Forms.ToolStripMenuItem("Do not disturb", null, (_, _) => ToggleDoNotDisturbRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(_doNotDisturbItem);
         menu.Items.Add(new Forms.ToolStripMenuItem("Refresh now", null, (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Forms.ToolStripMenuItem("Settings...", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -60,6 +64,21 @@ public sealed class TrayIcon : IDisposable
     public void SetInteractionMode(bool interactive) => _interactionItem.Checked = interactive;
 
     public void SetExpanded(bool expanded) => _expandedItem.Checked = expanded;
+
+    public void SetDoNotDisturb(bool enabled) => _doNotDisturbItem.Checked = enabled;
+
+    /// <summary>Windows notification (shown as a toast on Windows 10/11).</summary>
+    public void ShowNotification(string title, string body)
+    {
+        try
+        {
+            _notifyIcon.ShowBalloonTip(6000, title, string.IsNullOrWhiteSpace(body) ? " " : body, Forms.ToolTipIcon.None);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            Log.Warn("Could not show a Windows notification.", ex);
+        }
+    }
 
     /// <summary>Rebuilds the "Show" submenu (game filter choices).</summary>
     public void SetFilterChoices(IEnumerable<(string Label, bool IsChecked, Action Select)> choices)

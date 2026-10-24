@@ -139,6 +139,174 @@
                 </ScrollViewer>
             </TabItem>
 
+            <TabItem Header="Notifications">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Notifications}">
+                    <StackPanel>
+                        <TextBlock Text="Notifications" Style="{StaticResource SectionHeader}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Enabled}" Content="Enable notifications" />
+
+                        <Grid Grid.IsSharedSizeScope="True" Margin="0,10,0,0" IsEnabled="{Binding Enabled}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.Resources>
+                                <Style x:Key="ColumnHeader" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
+                                    <Setter Property="Margin" Value="0,0,0,6" />
+                                    <Setter Property="TextAlignment" Value="Center" />
+                                    <Setter Property="TextWrapping" Value="Wrap" />
+                                </Style>
+                            </Grid.Resources>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="54" />
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Test" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Event" Style="{StaticResource ColumnHeader}" TextAlignment="Left" />
+                                <TextBlock Grid.Column="1" Text="On" Style="{StaticResource ColumnHeader}" />
+                                <TextBlock Grid.Column="2" Text="Favorites only" Style="{StaticResource ColumnHeader}" />
+                                <TextBlock Grid.Column="3" Text="Overlay" Style="{StaticResource ColumnHeader}" />
+                                <TextBlock Grid.Column="4" Text="Windows" Style="{StaticResource ColumnHeader}" />
+                                <TextBlock Grid.Column="5" Text="Sound" Style="{StaticResource ColumnHeader}" />
+                                <TextBlock Grid.Column="6" Text="Voice" Style="{StaticResource ColumnHeader}" />
+                            </Grid>
+                            <ItemsControl Grid.Row="1" ItemsSource="{Binding Rules}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="44" />
+                                                <ColumnDefinition Width="64" />
+                                                <ColumnDefinition Width="54" />
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="44" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Test" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Label}" ToolTip="{Binding Description}" VerticalAlignment="Center" />
+                                            <CheckBox Grid.Column="1" Style="{StaticResource MatrixCheck}" IsChecked="{Binding Enabled}"
+                                                      AutomationProperties.Name="{Binding Label, StringFormat='{}{0} enabled'}" />
+                                            <CheckBox Grid.Column="2" Style="{StaticResource MatrixCheck}" IsChecked="{Binding FavoritesOnly}" IsEnabled="{Binding Enabled}"
+                                                      AutomationProperties.Name="{Binding Label, StringFormat='{}{0} favorites only'}" />
+                                            <CheckBox Grid.Column="3" Style="{StaticResource MatrixCheck}" IsChecked="{Binding Overlay}" IsEnabled="{Binding Enabled}"
+                                                      AutomationProperties.Name="{Binding Label, StringFormat='{}{0} overlay'}" />
+                                            <CheckBox Grid.Column="4" Style="{StaticResource MatrixCheck}" IsChecked="{Binding Desktop}" IsEnabled="{Binding Enabled}"
+                                                      AutomationProperties.Name="{Binding Label, StringFormat='{}{0} Windows notification'}" />
+                                            <CheckBox Grid.Column="5" Style="{StaticResource MatrixCheck}" IsChecked="{Binding Sound}" IsEnabled="{Binding Enabled}"
+                                                      AutomationProperties.Name="{Binding Label, StringFormat='{}{0} sound'}" />
+                                            <CheckBox Grid.Column="6" Style="{StaticResource MatrixCheck}" IsChecked="{Binding Speech}" IsEnabled="{Binding Enabled}"
+                                                      AutomationProperties.Name="{Binding Label, StringFormat='{}{0} voice'}" />
+                                            <Button Grid.Column="7" Style="{StaticResource DarkButton}" Content="Test" MinWidth="0" Padding="10,2"
+                                                    Margin="6,0,0,0" Command="{Binding TestCommand}"
+                                                    AutomationProperties.Name="{Binding Label, StringFormat='Test {0}'}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Alerts never replay old events: on startup and at the morning rollover the current state is only recorded. Hover an event name for details." />
+
+                        <TextBlock Text="Overlay toasts" Style="{StaticResource FieldLabel}" Margin="0,18,0,6" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="56" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Style="{StaticResource DarkSlider}" Minimum="3" Maximum="30" Value="{Binding ToastSeconds}" />
+                            <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center" Text="{Binding ToastSeconds, StringFormat={}{0:0} s}" />
+                        </Grid>
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding PlacementOptions}" DisplayMemberPath="Label" Margin="0,8,0,0"
+                                 SelectedValuePath="Value" SelectedValue="{Binding Placement}" />
+
+                        <TextBlock Text="Sounds" Style="{StaticResource FieldLabel}" Margin="0,18,0,0" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding SoundsEnabled}" Content="Play notification sounds" />
+                        <Grid IsEnabled="{Binding SoundsEnabled}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="56" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Style="{StaticResource DarkSlider}" Minimum="0" Maximum="100" Value="{Binding SoundVolumePercent}"
+                                    AutomationProperties.Name="Sound volume" />
+                            <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center" Text="{Binding SoundVolumePercent, StringFormat={}{0:0} %}" />
+                        </Grid>
+
+                        <TextBlock Text="Voice" Style="{StaticResource FieldLabel}" Margin="0,18,0,0" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding SpeechEnabled}" Content="Speak alerts (Windows text-to-speech)"
+                                  IsEnabled="{Binding SpeechAvailable}" />
+                        <StackPanel IsEnabled="{Binding SpeechEnabled}">
+                            <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding Voices}" SelectedItem="{Binding Voice}" Margin="0,4,0,0" />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="56" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Speed" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <Slider Grid.Column="1" Style="{StaticResource DarkSlider}" Minimum="-5" Maximum="5" IsSnapToTickEnabled="True"
+                                        TickFrequency="1" Value="{Binding SpeechRate}" AutomationProperties.Name="Voice speed" />
+                                <TextBlock Grid.Column="2" TextAlignment="Right" VerticalAlignment="Center" Text="{Binding SpeechRate}" />
+                            </Grid>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="Choose which events are spoken in the Voice column above." />
+
+                        <TextBlock Text="Quiet hours" Style="{StaticResource FieldLabel}" Margin="0,18,0,0" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding QuietHoursEnabled}"
+                                  Content="Mute sounds and voice during quiet hours (toasts still show)" />
+                        <StackPanel Orientation="Horizontal" IsEnabled="{Binding QuietHoursEnabled}">
+                            <TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <TextBox Style="{StaticResource DarkTextBox}" Width="70" Text="{Binding QuietFrom, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Quiet hours from" />
+                            <TextBlock Text="to" VerticalAlignment="Center" Margin="10,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <TextBox Style="{StaticResource DarkTextBox}" Width="70" Text="{Binding QuietTo, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Quiet hours to" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Gaming">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Gaming}">
+                    <StackPanel>
+                        <TextBlock Text="Gaming profile" Style="{StaticResource SectionHeader}" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                                   Text="When one of these games is the active window, the overlay switches to your gaming setup. Only the active window's process name is checked; no game files or memory are touched." />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Enabled}" Content="Enable the gaming profile" />
+
+                        <StackPanel IsEnabled="{Binding Enabled}">
+                            <TextBlock Text="Games (process names, comma separated)" Style="{StaticResource FieldLabel}" />
+                            <TextBox Style="{StaticResource DarkTextBox}" Text="{Binding GameProcesses, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Game process names" />
+                            <DockPanel Margin="0,12,0,6">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource DarkButton}" Content="Refresh" MinWidth="0" Padding="10,2"
+                                        Command="{Binding RefreshAppsCommand}" />
+                                <TextBlock Text="Running apps (click to add)" Style="{StaticResource FieldLabel}" Margin="0" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding RunningApps}" SelectedItem="{Binding SelectedRunningApp}" />
+
+                            <TextBlock Text="While gaming" Style="{StaticResource FieldLabel}" Margin="0,18,0,6" />
+                            <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding DisplayModeOptions}" DisplayMemberPath="Label"
+                                     SelectedValuePath="Value" SelectedValue="{Binding DisplayMode}" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ClickThrough}" Margin="0,10,0,6"
+                                      Content="Click-through (the interaction hotkey still lets you click the overlay)" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Sounds}" Content="Play sounds" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Speech}" Content="Speak alerts" />
+                            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding DesktopNotifications}"
+                                      Content="Show Windows notifications (they can pop over the game)" />
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
+                                       Text="Tip: the Do Not Disturb hotkey (default Ctrl+Alt+D) holds all alerts, for example during a raid boss, and shows a summary when you switch it off." />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <TabItem Header="Appearance">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
@@ -214,7 +382,11 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="2" Text="Do not disturb" VerticalAlignment="Center" Margin="0,8,16,0" />
+                            <controls:HotkeyBox Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" AutomationProperties.Name="Do not disturb hotkey"
+                                                Text="{Binding ToggleDoNotDisturbHotkey, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock Text="Show / hide overlay" VerticalAlignment="Center" Margin="0,0,16,8" />
                             <controls:HotkeyBox Grid.Column="1" Margin="0,0,0,8" AutomationProperties.Name="Show or hide overlay hotkey"
                                                 Text="{Binding ToggleOverlayHotkey, UpdateSourceTrigger=PropertyChanged}" />

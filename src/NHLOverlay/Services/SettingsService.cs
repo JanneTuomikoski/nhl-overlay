@@ -122,6 +122,8 @@ public sealed class SettingsService
             Hotkeys = ReadSection<HotkeySettings>(root, "hotkeys", brokenSections),
             Teams = ReadSection<TeamSettings>(root, "teams", brokenSections),
             HatTrick = ReadSection<HatTrickSettings>(root, "hatTrick", brokenSections),
+            Notifications = ReadSection<NotificationSettings>(root, "notifications", brokenSections),
+            Gaming = ReadSection<GamingSettings>(root, "gaming", brokenSections),
         };
         return settings.Normalize();
     }

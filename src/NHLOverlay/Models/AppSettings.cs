@@ -22,6 +22,10 @@ public sealed class AppSettings
 
     public HatTrickSettings HatTrick { get; set; } = new();
 
+    public NotificationSettings Notifications { get; set; } = new();
+
+    public GamingSettings Gaming { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -32,6 +36,8 @@ public sealed class AppSettings
         Hotkeys = (Hotkeys ?? new()).Normalize();
         Teams = (Teams ?? new()).Normalize();
         HatTrick = (HatTrick ?? new()).Normalize();
+        Notifications = (Notifications ?? new()).Normalize();
+        Gaming = (Gaming ?? new()).Normalize();
         return this;
     }
 
@@ -212,6 +218,7 @@ public sealed class HotkeySettings
 {
     public const string DefaultToggleOverlay = "Ctrl+Alt+N";
     public const string DefaultToggleInteraction = "Ctrl+Alt+I";
+    public const string DefaultToggleDoNotDisturb = "Ctrl+Alt+D";
 
     /// <summary>Show/hide the overlay. Empty string disables the hotkey.</summary>
     public string ToggleOverlay { get; set; } = DefaultToggleOverlay;
@@ -219,10 +226,14 @@ public sealed class HotkeySettings
     /// <summary>Switch between click-through and interaction mode. Empty string disables the hotkey.</summary>
     public string ToggleInteraction { get; set; } = DefaultToggleInteraction;
 
+    /// <summary>Hold all alerts until switched off again (then a summary is shown).</summary>
+    public string ToggleDoNotDisturb { get; set; } = DefaultToggleDoNotDisturb;
+
     internal HotkeySettings Normalize()
     {
         ToggleOverlay = NormalizeGesture(ToggleOverlay, DefaultToggleOverlay);
         ToggleInteraction = NormalizeGesture(ToggleInteraction, DefaultToggleInteraction);
+        ToggleDoNotDisturb = NormalizeGesture(ToggleDoNotDisturb, DefaultToggleDoNotDisturb);
         return this;
     }
 

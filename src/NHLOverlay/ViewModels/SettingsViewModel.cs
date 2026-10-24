@@ -39,6 +39,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private bool _snapToEdges;
     private string _toggleOverlayHotkey = "";
     private string _toggleInteractionHotkey = "";
+    private string _toggleDoNotDisturbHotkey = "";
     private string _hotkeyProblems = "";
     private string _apiStatus = "";
     private string _lastSuccessText = "";
@@ -50,6 +51,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         HotkeyService hotkeys,
         TeamDirectoryService teams,
         LogoService logos,
+        NotificationService notifications,
+        SpeechService speech,
         Action refreshNow,
         Dispatcher dispatcher)
     {
@@ -59,7 +62,9 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         _dispatcher = dispatcher;
         Teams = new TeamsSectionViewModel(teams, logos);
         HatTrick = new HatTrickSectionViewModel();
-        _sections = [Teams, HatTrick];
+        Notifications = new NotificationsSectionViewModel(notifications, speech);
+        Gaming = new GamingSectionViewModel();
+        _sections = [Teams, HatTrick, Notifications, Gaming];
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(this, EventArgs.Empty));
@@ -87,6 +92,10 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public TeamsSectionViewModel Teams { get; }
 
     public HatTrickSectionViewModel HatTrick { get; }
+
+    public NotificationsSectionViewModel Notifications { get; }
+
+    public GamingSectionViewModel Gaming { get; }
 
     // General
     public IReadOnlyList<int> RefreshIntervals { get; } = GeneralSettings.AllowedRefreshIntervals;
@@ -128,6 +137,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public string ToggleOverlayHotkey { get => _toggleOverlayHotkey; set => SetProperty(ref _toggleOverlayHotkey, value); }
 
     public string ToggleInteractionHotkey { get => _toggleInteractionHotkey; set => SetProperty(ref _toggleInteractionHotkey, value); }
+
+    public string ToggleDoNotDisturbHotkey { get => _toggleDoNotDisturbHotkey; set => SetProperty(ref _toggleDoNotDisturbHotkey, value); }
 
     /// <summary>Registration problems from the last time the hotkeys were applied (empty when all is well).</summary>
     public string HotkeyProblems
@@ -175,6 +186,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         SnapToEdges = s.Window.SnapToEdges;
         ToggleOverlayHotkey = s.Hotkeys.ToggleOverlay;
         ToggleInteractionHotkey = s.Hotkeys.ToggleInteraction;
+        ToggleDoNotDisturbHotkey = s.Hotkeys.ToggleDoNotDisturb;
         foreach (var section in _sections) section.Load(s);
     }
 
@@ -198,6 +210,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             s.Window.SnapToEdges = SnapToEdges;
             s.Hotkeys.ToggleOverlay = ToggleOverlayHotkey;
             s.Hotkeys.ToggleInteraction = ToggleInteractionHotkey;
+            s.Hotkeys.ToggleDoNotDisturb = ToggleDoNotDisturbHotkey;
             foreach (var section in _sections) section.Apply(s);
         });
         if (startupChanged) StartupRegistration.Apply(LaunchWithWindows);

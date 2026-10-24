@@ -12,18 +12,21 @@ public sealed class HotkeyService : IDisposable
     private readonly GlobalHotkeys _hotkeys;
     private readonly Action _toggleOverlay;
     private readonly Action _toggleInteraction;
+    private readonly Action _toggleDoNotDisturb;
     private HotkeySettings _applied;
     private bool _suspended;
 
-    public HotkeyService(IntPtr hwnd, SettingsService settings, Action toggleOverlay, Action toggleInteraction)
+    public HotkeyService(IntPtr hwnd, SettingsService settings, Action toggleOverlay, Action toggleInteraction, Action toggleDoNotDisturb)
     {
         _hotkeys = new GlobalHotkeys(hwnd);
         _toggleOverlay = toggleOverlay;
         _toggleInteraction = toggleInteraction;
+        _toggleDoNotDisturb = toggleDoNotDisturb;
         _applied = settings.Current.Hotkeys;
         settings.Changed += (_, s) =>
         {
-            if (s.Hotkeys.ToggleOverlay == _applied.ToggleOverlay && s.Hotkeys.ToggleInteraction == _applied.ToggleInteraction)
+            if (s.Hotkeys.ToggleOverlay == _applied.ToggleOverlay && s.Hotkeys.ToggleInteraction == _applied.ToggleInteraction
+                && s.Hotkeys.ToggleDoNotDisturb == _applied.ToggleDoNotDisturb)
                 return;
             _applied = s.Hotkeys;
             Apply();
@@ -50,6 +53,7 @@ public sealed class HotkeyService : IDisposable
         var problems = new List<string>();
         TryRegister("Show/hide overlay", _applied.ToggleOverlay, _toggleOverlay, problems);
         TryRegister("Toggle interaction mode", _applied.ToggleInteraction, _toggleInteraction, problems);
+        TryRegister("Do not disturb", _applied.ToggleDoNotDisturb, _toggleDoNotDisturb, problems);
         // While suspended the registration above is only a probe, so conflicts are still reported.
         if (_suspended) _hotkeys.UnregisterAll();
 
