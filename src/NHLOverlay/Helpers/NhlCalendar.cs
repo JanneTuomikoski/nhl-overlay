@@ -25,6 +25,13 @@ public static class NhlCalendar
         return local.Hour < HockeyDayStartHour ? day.AddDays(-1) : day;
     }
 
+    /// <summary>The instant the hockey day after the one containing <paramref name="now"/> begins.</summary>
+    public static DateTimeOffset GetNextHockeyDayStart(DateTimeOffset now, TimeZoneInfo localZone)
+    {
+        var next = GetHockeyDay(now, localZone).AddDays(1).ToDateTime(new TimeOnly(HockeyDayStartHour, 0), DateTimeKind.Unspecified);
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(next, localZone), TimeSpan.Zero);
+    }
+
     /// <summary>
     /// The NHL schedule date played during the user's current hockey day: the NHL date containing the
     /// afternoon (16:00 local) of that day. For every time zone from Hawaii to eastern Europe this is the

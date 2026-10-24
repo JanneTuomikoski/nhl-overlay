@@ -128,6 +128,7 @@ public partial class App : Application
         _tray.ExitRequested += (_, _) => Shutdown();
         _settings.Changed += (_, s) => Dispatcher.InvokeAsync(() =>
         {
+            _polling.Nudge(); // e.g. Liiga switched on: fetch it now rather than at the next due time
             SyncTray();
             UpdateGaming(_foreground?.CurrentProcess);
         });

@@ -102,14 +102,17 @@ public class LiigaTests
         liiga.Games[today] = [Game(9, GameStatus.Scheduled, "FUT", morning.AddHours(8)) with { League = League.Liiga }];
         var state = new GameStateService();
         var enabled = true;
-        using var service = new ScorePollingService(nhl, state, () => TimeSpan.FromSeconds(30), new ManualTimeProvider(morning),
+        var time = new ManualTimeProvider(morning);
+        using var service = new ScorePollingService(nhl, state, () => TimeSpan.FromSeconds(30), time,
             Zones.Helsinki, Zones.Eastern, liiga, () => enabled);
 
         await service.PollOnceAsync(CancellationToken.None);
         Assert.Equal([1L, 9L], state.Current.Games.Select(g => g.Id).Order());
 
         liiga.Failure = new NhlApiException("liiga down");
+        time.Now += ScorePollingService.IdleRecheck;
         await service.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(2, liiga.Requests.Count(d => d == today));
         Assert.False(state.Current.IsStale);
         Assert.Contains(state.Current.Games, g => g.Id == 9); // cached Liiga games stay
 
@@ -118,14 +121,40 @@ public class LiigaTests
         Assert.Equal([1L], state.Current.Games.Select(g => g.Id));
     }
 
+    [Fact]
+    public async Task A_live_liiga_game_does_not_speed_up_nhl_requests()
+    {
+        var morning = new DateTimeOffset(2026, 10, 25, 16, 0, 0, TimeSpan.Zero); // 18:00 in Helsinki
+        var today = new DateOnly(2026, 10, 25);
+        var nhl = new FakeNhlApi();
+        nhl.Games[today] = [Game(1, GameStatus.Scheduled, "FUT", morning.AddHours(7))];
+        var liiga = new FakeLiiga();
+        liiga.Games[today] = [Game(9, GameStatus.Live, "LIVE", morning.AddMinutes(-30), 1, 0) with { League = League.Liiga }];
+        var time = new ManualTimeProvider(morning);
+        using var service = new ScorePollingService(nhl, new GameStateService(), () => TimeSpan.FromSeconds(30), time,
+            Zones.Helsinki, Zones.Eastern, liiga, () => true);
+
+        for (var i = 0; i < 10; i++)
+        {
+            Assert.Equal(TimeSpan.FromSeconds(30), await service.PollOnceAsync(CancellationToken.None));
+            time.Now += TimeSpan.FromSeconds(30);
+        }
+
+        Assert.Equal(10, liiga.Requests.Count(d => d == today));
+        Assert.Equal(1, nhl.Requests.Count(d => d == today));
+    }
+
     private sealed class FakeLiiga : ILiigaClient
     {
         public Dictionary<DateOnly, IReadOnlyList<HockeyGame>> Games { get; } = [];
 
         public NhlApiException? Failure { get; set; }
 
+        public List<DateOnly> Requests { get; } = [];
+
         public Task<IReadOnlyList<HockeyGame>> GetGamesForDateAsync(DateOnly date, CancellationToken cancellationToken)
         {
+            Requests.Add(date);
             if (Failure is not null) throw Failure;
             return Task.FromResult(Games.TryGetValue(date, out var games) ? games : (IReadOnlyList<HockeyGame>)[]);
         }

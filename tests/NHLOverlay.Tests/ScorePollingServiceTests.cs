@@ -61,9 +61,11 @@ public class ScorePollingServiceTests
         _api.Games[Today] = [Game(2, GameStatus.Scheduled, "FUT", Morning.AddHours(15))];
         using var service = CreateService();
 
-        await service.PollOnceAsync(CancellationToken.None);
-        await service.PollOnceAsync(CancellationToken.None);
-        await service.PollOnceAsync(CancellationToken.None);
+        for (var i = 0; i < 3; i++)
+        {
+            await service.PollOnceAsync(CancellationToken.None);
+            _time.Now += ScorePollingService.IdleRecheck;
+        }
 
         Assert.Equal(1, _api.Requests.Count(d => d == Yesterday));
         Assert.Equal(3, _api.Requests.Count(d => d == Today));
@@ -76,6 +78,7 @@ public class ScorePollingServiceTests
         using var service = CreateService();
 
         await service.PollOnceAsync(CancellationToken.None);
+        _time.Now += Interval;
         await service.PollOnceAsync(CancellationToken.None);
 
         Assert.Equal(2, _api.Requests.Count(d => d == Yesterday));
@@ -138,7 +141,10 @@ public class ScorePollingServiceTests
 
         var delays = new List<TimeSpan>();
         for (var i = 0; i < 6; i++)
+        {
             delays.Add(await service.PollOnceAsync(CancellationToken.None));
+            _time.Now += delays[^1];
+        }
 
         Assert.Equal([30, 60, 120, 240, 300, 300], delays.Select(d => (int)d.TotalSeconds));
         Assert.False(_state.Current.HasData);
@@ -161,8 +167,62 @@ public class ScorePollingServiceTests
     public void Slows_down_when_the_next_game_is_far_away()
     {
         var games = new[] { Game(1, GameStatus.Final, "OFF", Morning.AddHours(-10), 1, 2), Game(2, GameStatus.Scheduled, "FUT", Morning.AddHours(10)) };
-        Assert.Equal(ScorePollingService.IdleInterval, ScorePollingService.NextDelay(games, Morning, Interval));
+        Assert.Equal(ScorePollingService.IdleRecheck, ScorePollingService.NextDelay(games, Morning, Interval));
     }
+
+    [Fact]
+    public void A_day_without_games_is_checked_rarely() =>
+        Assert.Equal(ScorePollingService.NoGamesRecheck, ScorePollingService.NextDelay([], Morning, Interval));
+
+    [Fact]
+    public async Task Idle_dates_are_not_refetched_until_due()
+    {
+        _api.Games[Yesterday] = [Game(1, GameStatus.Final, "OFF", Morning.AddHours(-10), 3, 2)];
+        _api.Games[Today] = [Game(2, GameStatus.Scheduled, "FUT", Morning.AddMinutes(40))];
+        using var service = CreateService();
+
+        // Next start in 40 min: sleep until 10 minutes before it.
+        Assert.Equal(TimeSpan.FromMinutes(30), await service.PollOnceAsync(CancellationToken.None));
+        Assert.Equal(Morning.AddMinutes(30), _state.Current.NextRefreshUtc);
+
+        _time.Now = Morning.AddMinutes(10);
+        await service.PollOnceAsync(CancellationToken.None); // a nudge (e.g. settings saved) fetches nothing
+        Assert.Equal(1, _api.Requests.Count(d => d == Today));
+
+        _time.Now = Morning.AddMinutes(30);
+        Assert.Equal(Interval, await service.PollOnceAsync(CancellationToken.None)); // warm-up: user interval
+        Assert.Equal(2, _api.Requests.Count(d => d == Today));
+    }
+
+    [Fact]
+    public async Task Manual_refresh_refetches_dates_that_are_not_due()
+    {
+        _api.Games[Today] = [Game(2, GameStatus.Scheduled, "FUT", Morning.AddHours(10))];
+        using var service = CreateService();
+        await service.PollOnceAsync(CancellationToken.None);
+
+        service.RequestRefresh();
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Equal(2, _api.Requests.Count(d => d == Today));
+    }
+
+    [Fact]
+    public async Task Off_season_sleeps_until_the_morning_rollover_at_most()
+    {
+        using var service = CreateService();
+        _time.Now = new DateTimeOffset(2026, 7, 1, 2, 0, 0, TimeSpan.Zero); // 05:00 in Helsinki, no games anywhere
+
+        var delay = await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Equal(TimeSpan.FromHours(3), delay); // 08:00 rollover comes before the 6 h recheck
+    }
+
+    [Fact]
+    public void Next_hockey_day_starts_at_eight_local_across_dst() =>
+        // 01:00 on Oct 25 in Helsinki is still the Oct 24 hockey day; DST ends at 04:00 that night.
+        Assert.Equal(new DateTimeOffset(2026, 10, 25, 6, 0, 0, TimeSpan.Zero),
+            Helpers.NhlCalendar.GetNextHockeyDayStart(new DateTimeOffset(2026, 10, 24, 22, 0, 0, TimeSpan.Zero), Zones.Helsinki));
 
     [Fact]
     public void Wakes_up_shortly_before_the_next_game()

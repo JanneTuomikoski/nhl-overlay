@@ -6,11 +6,11 @@ namespace NHLOverlay.Services;
 
 /// <summary>
 /// All NHL teams with names, logos and standings. Starts from the built-in team list, then the disk cache,
-/// then live <c>/standings/now</c> data, refreshed every couple of hours and shortly after a game goes final.
+/// then live <c>/standings/now</c> data, refreshed shortly after a game goes final (and every few hours as a fallback).
 /// </summary>
 public sealed class TeamDirectoryService : IDisposable
 {
-    private static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(2);
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(6);
     private static readonly TimeSpan AfterFinalDelay = TimeSpan.FromMinutes(3);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

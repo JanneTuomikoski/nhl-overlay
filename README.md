@@ -150,8 +150,8 @@ Public, unofficial APIs; no keys. Fields were verified against live responses in
 
 | Data | Endpoint | How often |
 |------|----------|-----------|
-| Scores, clock, shots, goals | `api-web.nhle.com/v1/score/{date}` | refresh interval (default 30 s) for yesterday + today; finished days are cached for good; every 5 min when nothing is live |
-| Standings | `/standings/now` | every 2 h and a few minutes after a game ends |
+| Scores, clock, shots, goals | `api-web.nhle.com/v1/score/{date}` | refresh interval (default 30 s) while a game on that date is live; otherwise from 10 min before the next start, with an hourly check for schedule changes; every 6 h on days without games; finished days are cached for good |
+| Standings | `/standings/now` | a few minutes after a game ends, otherwise every 6 h |
 | Rosters (birth country) | `/roster/{team}/current` | once a day per team playing |
 | Goalie lines | `/gamecenter/{id}/boxscore` | only for watched-country goalies and shutouts; every 2 min while live, once when official |
 | Team schedules | `/club-schedule-season/{team}/now` | favorite teams, twice a day |
@@ -159,7 +159,7 @@ Public, unofficial APIs; no keys. Fields were verified against live responses in
 | Play-by-play | `/gamecenter/{id}/play-by-play` | only the focused game, only while the dashboard is open |
 | Player careers | `/player/{id}/landing` (+ `game-log/now` for long streaks) | once a day per player in watch scope |
 | Logos | `assets.nhle.com/logos/nhl/svg/*` | once per 30 days |
-| Liiga | `liiga.fi/api/v2/games?date={date}` | same rhythm as NHL scores, when enabled |
+| Liiga | `liiga.fi/api/v2/games?date={date}` | same rules as NHL scores but on its own schedule (a live Liiga game doesn't speed up NHL requests), when enabled |
 
 Failures keep the last good data on screen (amber dot) and back off exponentially (honoring `Retry-After`).
 

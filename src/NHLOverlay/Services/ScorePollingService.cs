@@ -10,15 +10,22 @@ namespace NHLOverlay.Services;
 /// <item>NHL dates whose games are all official/inactive are cached and never re-requested.</item>
 /// <item>The last good data is kept and re-published (marked stale) when a request fails.</item>
 /// <item>Exponential backoff after failures, honoring Retry-After.</item>
-/// <item>Slower polling when nothing is live and the next game is far away (request budget).</item>
+/// <item>Each date (per league) is refreshed on its own schedule: at the user interval while a game is
+/// live, otherwise not until shortly before its next game (checked hourly for schedule changes), and
+/// only every few hours when it has no games at all. The loop sleeps until the earliest due date or the
+/// morning rollover.</item>
 /// </list>
 /// </summary>
 public sealed class ScorePollingService : IDisposable
 {
     internal static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
     internal static readonly TimeSpan MaxRetryAfter = TimeSpan.FromMinutes(15);
-    internal static readonly TimeSpan IdleInterval = TimeSpan.FromMinutes(5);
+    internal static readonly TimeSpan IdleRecheck = TimeSpan.FromHours(1);
+    internal static readonly TimeSpan NoGamesRecheck = TimeSpan.FromHours(6);
     internal static readonly TimeSpan PreGameLead = TimeSpan.FromMinutes(10);
+
+    /// <summary>Longest single wait, so a long sleep still notices the wall clock jumping (PC sleep/resume).</summary>
+    private static readonly TimeSpan MaxWaitSlice = TimeSpan.FromMinutes(1);
 
     private readonly INhlApiClient _api;
     private readonly GameStateService _state;
@@ -35,12 +42,18 @@ public sealed class ScorePollingService : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private int _consecutiveFailures;
+    private int _liigaFailures;
+    private bool _lastFetchFailed;
+    private int _forceRefresh; // 1 = refetch every unsettled date on the next poll
     private DateTimeOffset? _lastSuccessUtc;
     private string? _lastError;
     private DateTimeOffset? _lastErrorUtc;
     private int _viewedDayNumber; // DateOnly.DayNumber of an extra date the user is viewing; 0 = none
 
     private sealed record DateCache(IReadOnlyList<HockeyGame> Games, bool IsSettled);
+
+    private readonly Dictionary<DateOnly, DateTimeOffset> _due = [];
+    private readonly Dictionary<DateOnly, DateTimeOffset> _liigaDue = [];
 
     public ScorePollingService(
         INhlApiClient api,
@@ -70,7 +83,7 @@ public sealed class ScorePollingService : IDisposable
     {
         var dayNumber = date?.DayNumber ?? 0;
         if (Interlocked.Exchange(ref _viewedDayNumber, dayNumber) != dayNumber && date is not null)
-            RequestRefresh();
+            Nudge();
     }
 
     public void Start()
@@ -81,8 +94,15 @@ public sealed class ScorePollingService : IDisposable
         _loop = Task.Run(() => RunAsync(token));
     }
 
-    /// <summary>Requests an immediate refresh. Multiple calls before the poll runs collapse into one.</summary>
+    /// <summary>Requests an immediate refresh of every unsettled date. Multiple calls before the poll runs collapse into one.</summary>
     public void RequestRefresh()
+    {
+        Volatile.Write(ref _forceRefresh, 1);
+        Nudge();
+    }
+
+    /// <summary>Wakes the loop to fetch only what is missing or due (e.g. a newly viewed date, Liiga switched on).</summary>
+    public void Nudge()
     {
         try
         {
@@ -115,7 +135,12 @@ public sealed class ScorePollingService : IDisposable
 
             try
             {
-                await _wake.WaitAsync(delay, ct).ConfigureAwait(false);
+                var dueUtc = _time.GetUtcNow() + delay;
+                while (_time.GetUtcNow() < dueUtc)
+                {
+                    var left = dueUtc - _time.GetUtcNow();
+                    if (await _wake.WaitAsync(left < MaxWaitSlice ? left : MaxWaitSlice, ct).ConfigureAwait(false)) break;
+                }
             }
             catch (OperationCanceledException)
             {
@@ -130,31 +155,60 @@ public sealed class ScorePollingService : IDisposable
         var now = _time.GetUtcNow();
         var today = NhlCalendar.GetTodayNhlDate(now, _localZone, _eastern);
         var dates = SelectDates(today);
+        var force = Interlocked.Exchange(ref _forceRefresh, 0) == 1;
         foreach (var obsolete in _cache.Keys.Where(d => !dates.Contains(d)).ToList())
             _cache.Remove(obsolete);
+        foreach (var obsolete in _due.Keys.Where(d => !dates.Contains(d)).ToList())
+            _due.Remove(obsolete);
 
         string? error = null;
         TimeSpan? retryAfter = null;
+        var failed = new List<DateOnly>();
+        var fetchedAny = false;
         foreach (var date in dates)
         {
             if (_cache.TryGetValue(date, out var cached) && cached.IsSettled)
                 continue; // Finished games don't change; no request needed.
+            if (!force && _due.TryGetValue(date, out var due) && now < due)
+                continue; // Not due yet (nothing live, next game far away).
 
+            fetchedAny = true;
             try
             {
                 var fetched = await _api.GetGamesForDateAsync(date, ct).ConfigureAwait(false);
                 _cache[date] = new DateCache(fetched, IsSettled(fetched));
+                _due[date] = now + NextDelay(fetched, now, _interval());
             }
             catch (NhlApiException ex)
             {
                 error ??= ex.Message;
                 if (ex.RetryAfter is { } ra && (retryAfter is null || ra > retryAfter))
                     retryAfter = ra;
+                failed.Add(date);
                 Log.Warn($"Refreshing NHL date {date:yyyy-MM-dd} failed: {ex.Message}");
             }
         }
 
-        await PollLiigaAsync(dates, now, ct).ConfigureAwait(false);
+        if (fetchedAny)
+        {
+            if (error is null)
+            {
+                _consecutiveFailures = 0;
+                _lastSuccessUtc = now;
+            }
+            else
+            {
+                _consecutiveFailures++;
+                _lastError = error;
+                _lastErrorUtc = now;
+                var retry = now + Backoff(_interval(), _consecutiveFailures, retryAfter);
+                foreach (var date in failed) _due[date] = retry;
+            }
+
+            _lastFetchFailed = error is not null;
+        }
+
+        await PollLiigaAsync(dates, now, force, ct).ConfigureAwait(false);
 
         var byDate = dates.Where(d => _cache.ContainsKey(d) || _liigaCache.ContainsKey(d)).ToDictionary(
             d => d,
@@ -163,20 +217,12 @@ public sealed class ScorePollingService : IDisposable
                 .ToList());
         var todayView = BuildTodayView(today, byDate);
 
-        TimeSpan delay;
-        if (error is null)
-        {
-            _consecutiveFailures = 0;
-            _lastSuccessUtc = now;
-            delay = NextDelay(byDate.Values.SelectMany(g => g).ToList(), now, _interval());
-        }
-        else
-        {
-            _consecutiveFailures++;
-            _lastError = error;
-            _lastErrorUtc = now;
-            delay = Backoff(_interval(), _consecutiveFailures, retryAfter);
-        }
+        // Sleep until the earliest due date, or the morning rollover when a new slate becomes "today".
+        var wake = NhlCalendar.GetNextHockeyDayStart(now, _localZone);
+        foreach (var due in _due.Values.Concat(_liigaDue.Values))
+            if (due < wake) wake = due;
+        var delay = wake - now;
+        if (delay < TimeSpan.FromSeconds(1)) delay = TimeSpan.FromSeconds(1);
 
         _state.Publish(new ScoreboardSnapshot
         {
@@ -184,7 +230,7 @@ public sealed class ScorePollingService : IDisposable
             Games = todayView,
             GamesByDate = byDate,
             HasData = byDate.ContainsKey(today),
-            IsStale = error is not null,
+            IsStale = _lastFetchFailed,
             LastSuccessUtc = _lastSuccessUtc,
             LastError = _lastError,
             LastErrorUtc = _lastErrorUtc,
@@ -197,24 +243,31 @@ public sealed class ScorePollingService : IDisposable
     /// Liiga games for the same dates (Liiga plays in Finland, so its calendar date is the hockey day). A Liiga
     /// failure is logged but never marks the NHL data stale or slows NHL polling down.
     /// </summary>
-    private async Task PollLiigaAsync(IReadOnlyList<DateOnly> dates, DateTimeOffset now, CancellationToken ct)
+    private async Task PollLiigaAsync(IReadOnlyList<DateOnly> dates, DateTimeOffset now, bool force, CancellationToken ct)
     {
         if (_liiga is null || !_liigaEnabled())
         {
             _liigaCache.Clear();
+            _liigaDue.Clear();
             return;
         }
 
         foreach (var obsolete in _liigaCache.Keys.Where(d => !dates.Contains(d)).ToList())
             _liigaCache.Remove(obsolete);
+        foreach (var obsolete in _liigaDue.Keys.Where(d => !dates.Contains(d)).ToList())
+            _liigaDue.Remove(obsolete);
 
         foreach (var date in dates)
         {
             if (_liigaCache.TryGetValue(date, out var cached) && cached.IsSettled) continue;
+            if (!force && _liigaDue.TryGetValue(date, out var due) && now < due) continue;
             try
             {
                 var games = await _liiga.GetGamesForDateAsync(date, ct).ConfigureAwait(false);
                 _liigaCache[date] = new DateCache(games, IsSettled(games));
+                _liigaDue[date] = now + NextDelay(games, now, _interval());
+                _liigaFailures = 0;
+                continue;
             }
             catch (NhlApiException ex)
             {
@@ -224,6 +277,8 @@ public sealed class ScorePollingService : IDisposable
             {
                 Log.Error($"Unexpected error reading Liiga {date:yyyy-MM-dd}.", ex);
             }
+
+            _liigaDue[date] = now + Backoff(_interval(), ++_liigaFailures, null);
         }
     }
 
@@ -266,14 +321,16 @@ public sealed class ScorePollingService : IDisposable
                                     || (g.Status == GameStatus.Final && !IsOfficial(g)));
         if (active) return interval;
 
-        // Nothing live: sleep until shortly before the next scheduled start, but never longer than
-        // the idle interval (so schedule changes are still noticed) or shorter than the user interval.
+        // Nothing live: sleep until shortly before the next scheduled start, but at most an hour (so
+        // schedule changes are still noticed), and never shorter than the user interval. A date with no
+        // upcoming games (an empty day, the off-season) is only checked every few hours.
         var nextStart = games.Where(g => g.Status == GameStatus.Scheduled)
                              .Select(g => (DateTimeOffset?)g.StartTimeUtc)
                              .Min();
-        var untilWarmup = nextStart is { } start ? start - PreGameLead - now : IdleInterval;
+        if (nextStart is not { } start) return NoGamesRecheck;
+        var untilWarmup = start - PreGameLead - now;
         if (untilWarmup < interval) return interval;
-        return untilWarmup < IdleInterval ? untilWarmup : IdleInterval > interval ? IdleInterval : interval;
+        return untilWarmup < IdleRecheck ? untilWarmup : IdleRecheck;
     }
 
     internal static TimeSpan Backoff(TimeSpan interval, int consecutiveFailures, TimeSpan? retryAfter)
