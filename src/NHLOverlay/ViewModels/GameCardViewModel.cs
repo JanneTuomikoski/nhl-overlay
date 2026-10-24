@@ -13,13 +13,34 @@ public sealed record GoalLine(string Period, string Time, string Team, string Sc
 
 /// <summary>Everything a card needs besides the game itself; built once per refresh.</summary>
 public sealed record CardContext(
-    AppearanceSettings Appearance,
-    TeamSettings Teams,
+    AppSettings Settings,
     IReadOnlySet<string> Favorites,
     Func<string, TeamStanding?> FindTeam,
+    IReadOnlyDictionary<long, IReadOnlyList<PlayerGameGoals>> HatTricks,
     DateTimeOffset Now,
     TimeZoneInfo LocalZone,
-    CultureInfo Culture);
+    CultureInfo Culture)
+{
+    public AppearanceSettings Appearance => Settings.Appearance;
+
+    /// <summary>Hat-Trick Watch players for a game, honoring the enable and scope settings.</summary>
+    public IReadOnlyList<PlayerGameGoals> HatTricksFor(HockeyGame game)
+    {
+        var settings = Settings.HatTrick;
+        if (!settings.Enabled || !HatTricks.TryGetValue(game.Id, out var players)) return [];
+        if (settings.Scope == TeamScope.FavoritesOnly && !GameOrdering.IsFavorite(game, Favorites)) return [];
+        // A two-goal "watch" only means something while the game can still produce a third goal;
+        // completed hat tricks stay visible for the rest of the game day.
+        return game.Status.IsInProgress() ? players : players.Where(p => p.IsHatTrick).ToList();
+    }
+}
+
+public enum HatTrickState
+{
+    None,
+    Watch,
+    Completed,
+}
 
 /// <summary>One game card. Updated in place on every refresh so the UI doesn't rebuild or flicker.</summary>
 public sealed class GameCardViewModel : ObservableObject
@@ -29,6 +50,8 @@ public sealed class GameCardViewModel : ObservableObject
     private string _homeAbbrev = "";
     private string _awayName = "";
     private string _homeName = "";
+    private string _awayShortName = "";
+    private string _homeShortName = "";
     private string _awayScore = "";
     private string _homeScore = "";
     private string _awayShots = "";
@@ -53,6 +76,10 @@ public sealed class GameCardViewModel : ObservableObject
     private bool _isFavorite;
     private bool _showFavoriteBar;
     private bool _showFavoriteTint;
+    private HatTrickState _hatTrickState;
+    private bool _highlightHatTrick;
+    private string _hatTrickText = "";
+    private string _hatTrickTextLong = "";
 
     public GameCardViewModel(long id, LogoService logos)
     {
@@ -76,6 +103,11 @@ public sealed class GameCardViewModel : ObservableObject
 
     public string HomeName { get => _homeName; private set => SetProperty(ref _homeName, value); }
 
+    /// <summary>Common name ("Avalanche") for narrow layouts.</summary>
+    public string AwayShortName { get => _awayShortName; private set => SetProperty(ref _awayShortName, value); }
+
+    public string HomeShortName { get => _homeShortName; private set => SetProperty(ref _homeShortName, value); }
+
     public ImageSource? AwayLogo { get => _awayLogo; private set => SetProperty(ref _awayLogo, value); }
 
     public ImageSource? HomeLogo { get => _homeLogo; private set => SetProperty(ref _homeLogo, value); }
@@ -89,6 +121,26 @@ public sealed class GameCardViewModel : ObservableObject
 
     /// <summary>Tinted background for a favorite team's card.</summary>
     public bool ShowFavoriteTint { get => _showFavoriteTint; private set => SetProperty(ref _showFavoriteTint, value); }
+
+    public HatTrickState HatTrickState
+    {
+        get => _hatTrickState;
+        private set
+        {
+            if (SetProperty(ref _hatTrickState, value)) OnPropertyChanged(nameof(HasHatTrick));
+        }
+    }
+
+    public bool HasHatTrick => HatTrickState != HatTrickState.None;
+
+    /// <summary>Amber card highlight (setting), shown for a watch or a completed hat trick.</summary>
+    public bool HighlightHatTrick { get => _highlightHatTrick; private set => SetProperty(ref _highlightHatTrick, value); }
+
+    /// <summary>Compact text, e.g. "HAT-TRICK WATCH  C. McDavid (2)"; one line per player.</summary>
+    public string HatTrickText { get => _hatTrickText; private set => SetProperty(ref _hatTrickText, value); }
+
+    /// <summary>Expanded text, e.g. "HAT-TRICK WATCH  Connor McDavid · 2 goals".</summary>
+    public string HatTrickTextLong { get => _hatTrickTextLong; private set => SetProperty(ref _hatTrickTextLong, value); }
 
     public string AwayScore { get => _awayScore; private set => SetProperty(ref _awayScore, value); }
 
@@ -144,12 +196,15 @@ public sealed class GameCardViewModel : ObservableObject
         HomeAbbrev = game.Home.Abbrev;
         AwayName = TeamName(game.Away, context);
         HomeName = TeamName(game.Home, context);
+        AwayShortName = ShortTeamName(game.Away, context);
+        HomeShortName = ShortTeamName(game.Home, context);
         Status = game.Status;
         StatusText = GameStatusFormatter.FormatStatus(game, context.LocalZone, context.Now, culture, appearance.ShowGameClock);
 
         IsFavorite = GameOrdering.IsFavorite(game, context.Favorites);
-        ShowFavoriteBar = IsFavorite && context.Teams.Highlight is FavoriteHighlight.Bar or FavoriteHighlight.BarAndTint;
-        ShowFavoriteTint = IsFavorite && context.Teams.Highlight == FavoriteHighlight.BarAndTint;
+        ShowFavoriteBar = IsFavorite && context.Settings.Teams.Highlight is FavoriteHighlight.Bar or FavoriteHighlight.BarAndTint;
+        ShowFavoriteTint = IsFavorite && context.Settings.Teams.Highlight == FavoriteHighlight.BarAndTint;
+        UpdateHatTrick(context.HatTricksFor(game), context.Settings.HatTrick);
         _gameCenterUrl = game.GameCenterUrl;
 
         HasScore = game.HasScore && !game.Status.IsUpcoming() && !game.Status.IsInactive();
@@ -183,10 +238,40 @@ public sealed class GameCardViewModel : ObservableObject
         }.Where(line => line is not null));
     }
 
+    private void UpdateHatTrick(IReadOnlyList<PlayerGameGoals> players, HatTrickSettings settings)
+    {
+        HatTrickState = players.Any(p => p.IsHatTrick) ? HatTrickState.Completed
+            : players.Any(p => p.IsWatch) ? HatTrickState.Watch
+            : HatTrickState.None;
+        HighlightHatTrick = HasHatTrick && settings.HighlightCards;
+
+        if (!settings.ShowPlayerName)
+        {
+            HatTrickText = HatTrickTextLong = HatTrickState switch
+            {
+                HatTrickState.Completed => "HAT TRICK!",
+                HatTrickState.Watch => "HAT-TRICK WATCH",
+                _ => "",
+            };
+            return;
+        }
+
+        static string Label(PlayerGameGoals p) => p.IsHatTrick ? "HAT TRICK!" : "HAT-TRICK WATCH";
+        HatTrickText = string.Join(Environment.NewLine, players.Select(p => $"{Label(p)}  {p.ShortName} ({p.Goals})"));
+        HatTrickTextLong = string.Join(Environment.NewLine, players.Select(p => $"{Label(p)}  {p.Name} · {p.Goals} goals"));
+    }
+
     /// <summary>Full name from the team directory ("Los Angeles Kings"), else what the scoreboard sent.</summary>
     private static string TeamName(HockeyTeam team, CardContext context)
     {
         var known = context.FindTeam(team.Abbrev)?.FullName;
+        if (!string.IsNullOrWhiteSpace(known)) return known;
+        return string.IsNullOrWhiteSpace(team.Name) ? team.Abbrev : team.Name;
+    }
+
+    private static string ShortTeamName(HockeyTeam team, CardContext context)
+    {
+        var known = context.FindTeam(team.Abbrev)?.CommonName;
         if (!string.IsNullOrWhiteSpace(known)) return known;
         return string.IsNullOrWhiteSpace(team.Name) ? team.Abbrev : team.Name;
     }

@@ -155,7 +155,7 @@ public sealed class OverlayViewModel : ObservableObject
         var culture = CultureInfo.CurrentCulture;
         var settings = _settings.Current;
         var favorites = settings.Teams.Favorites.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var context = new CardContext(settings.Appearance, settings.Teams, favorites, _teams.Find, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture);
+        var context = new CardContext(settings, favorites, _teams.Find, snapshot.HatTricks, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture);
 
         var viewed = ViewedDate();
         DayLabel = viewed is { } date ? GameStatusFormatter.FormatDayLabel(date, snapshot.TodayNhlDate, culture) : "TODAY";
@@ -166,7 +166,9 @@ public sealed class OverlayViewModel : ObservableObject
 
         // The filter applies to the today view only; browsing other days always shows every game.
         var filter = _dayOffset == 0 ? settings.Teams.Filter : GameFilter.All;
-        var visible = source is null ? [] : GameOrdering.Sort(GameOrdering.Filter(source, filter, favorites, HasHatTrickWatch), favorites, settings.Teams.SortOrder);
+        var visible = source is null
+            ? []
+            : GameOrdering.Sort(GameOrdering.Filter(source, filter, favorites, g => context.HatTricksFor(g).Count > 0), favorites, settings.Teams.SortOrder);
         SyncCards(visible, context);
 
         Connection = (snapshot.HasData, snapshot.IsStale, snapshot.LastError) switch
@@ -201,9 +203,6 @@ public sealed class OverlayViewModel : ObservableObject
         if (snapshot.IsStale && snapshot.LastError is { } error) tip.Add($"Showing cached scores. Last error: {error}");
         StatusToolTip = string.Join(Environment.NewLine, tip);
     }
-
-    // Placeholder until Hat-Trick Watch lands: no game qualifies yet.
-    private static bool HasHatTrickWatch(HockeyGame game) => false;
 
     private void SyncCards(IReadOnlyList<HockeyGame> ordered, CardContext context)
     {

@@ -31,6 +31,7 @@
     <SolidColorBrush x:Key="StatusInactiveBrush" Color="#6B7480" />
     <SolidColorBrush x:Key="StatusErrorBrush" Color="#F87171" />
     <SolidColorBrush x:Key="StatusStaleBrush" Color="#F5B841" />
+    <SolidColorBrush x:Key="HatTrickBrush" Color="#FFC24D" />
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
@@ -449,6 +450,22 @@
         <Style.Triggers>
             <DataTrigger Binding="{Binding ShowFavoriteTint}" Value="True">
                 <Setter Property="Background" Value="#1A4FB3FF" />
+            </DataTrigger>
+            <!-- Declared last so the hat-trick amber wins over the favorite tint. -->
+            <DataTrigger Binding="{Binding HighlightHatTrick}" Value="True">
+                <Setter Property="Background" Value="#26F5B841" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="HatTrickText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource HatTrickBrush}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding HasHatTrick}" Value="True">
+                <Setter Property="Visibility" Value="Visible" />
             </DataTrigger>
         </Style.Triggers>
     </Style>

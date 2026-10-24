@@ -20,6 +20,10 @@ public sealed record ScoreboardSnapshot
     public IReadOnlyDictionary<DateOnly, IReadOnlyList<HockeyGame>> GamesByDate { get; init; } =
         new Dictionary<DateOnly, IReadOnlyList<HockeyGame>>();
 
+    /// <summary>Hat-Trick Watch results by game id: players with two or more goals (see <see cref="HatTrickTracker"/>).</summary>
+    public IReadOnlyDictionary<long, IReadOnlyList<PlayerGameGoals>> HatTricks { get; init; } =
+        new Dictionary<long, IReadOnlyList<PlayerGameGoals>>();
+
     /// <summary>When every request of a refresh last succeeded. Null until the first success.</summary>
     public DateTimeOffset? LastSuccessUtc { get; init; }
 
@@ -43,6 +47,7 @@ public sealed record ScoreboardSnapshot
 public sealed class GameStateService
 {
     private readonly Lock _gate = new();
+    private readonly HatTrickTracker _hatTricks = new();
     private ScoreboardSnapshot _current = ScoreboardSnapshot.Empty;
 
     public ScoreboardSnapshot Current
@@ -56,9 +61,16 @@ public sealed class GameStateService
     /// <summary>Raised on a background thread; UI subscribers must marshal to the dispatcher.</summary>
     public event EventHandler<ScoreboardSnapshot>? Changed;
 
+    /// <summary>Derives per-game analysis (hat tricks) and makes the snapshot current.</summary>
     public void Publish(ScoreboardSnapshot snapshot)
     {
-        lock (_gate) _current = snapshot;
+        lock (_gate)
+        {
+            var allGames = snapshot.GamesByDate.Values.SelectMany(g => g).Concat(snapshot.Games).ToList();
+            snapshot = snapshot with { HatTricks = _hatTricks.Update(allGames) };
+            _current = snapshot;
+        }
+
         Changed?.Invoke(this, snapshot);
     }
 }

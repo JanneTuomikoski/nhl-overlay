@@ -20,6 +20,8 @@ public sealed class AppSettings
 
     public TeamSettings Teams { get; set; } = new();
 
+    public HatTrickSettings HatTrick { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -29,6 +31,7 @@ public sealed class AppSettings
         Window = (Window ?? new()).Normalize();
         Hotkeys = (Hotkeys ?? new()).Normalize();
         Teams = (Teams ?? new()).Normalize();
+        HatTrick = (HatTrick ?? new()).Normalize();
         return this;
     }
 
@@ -64,6 +67,31 @@ public enum FavoriteHighlight
     BarAndTint,
     Bar,
     None,
+}
+
+public enum TeamScope
+{
+    AllTeams,
+    FavoritesOnly,
+}
+
+public sealed class HatTrickSettings
+{
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>League-wide by default, even for games without favorite teams.</summary>
+    public TeamScope Scope { get; set; } = TeamScope.AllTeams;
+
+    /// <summary>Amber highlight on games with a hat-trick watch or a completed hat trick.</summary>
+    public bool HighlightCards { get; set; } = true;
+
+    public bool ShowPlayerName { get; set; } = true;
+
+    internal HatTrickSettings Normalize()
+    {
+        Scope = AppSettings.DefinedOr(Scope, TeamScope.AllTeams);
+        return this;
+    }
 }
 
 public sealed class TeamSettings

@@ -116,6 +116,29 @@
                 </ScrollViewer>
             </TabItem>
 
+            <TabItem Header="Hat-Trick Watch">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding HatTrick}">
+                    <StackPanel>
+                        <TextBlock Text="Hat-Trick Watch" Style="{StaticResource SectionHeader}" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                                   Text="Flags players with two goals in a game, then the completed hat trick. Counts come from the game's own goal list; shootout goals never count." />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Enabled}" Content="Enable Hat-Trick Watch" />
+
+                        <TextBlock Text="Watch" Style="{StaticResource FieldLabel}" />
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding ScopeOptions}" DisplayMemberPath="Label"
+                                 SelectedValuePath="Value" SelectedValue="{Binding Scope}" IsEnabled="{Binding Enabled}" />
+
+                        <TextBlock Text="Display" Style="{StaticResource FieldLabel}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding HighlightCards}" IsEnabled="{Binding Enabled}"
+                                  Content="Highlight the game card in amber" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowPlayerName}" IsEnabled="{Binding Enabled}"
+                                  Content="Show the player's name" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
+                                   Text="Alerts for two-goal players and completed hat tricks are set on the Notifications tab." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <TabItem Header="Appearance">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>

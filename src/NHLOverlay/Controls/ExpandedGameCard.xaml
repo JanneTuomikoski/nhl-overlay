@@ -26,9 +26,17 @@
                     <!-- Away -->
                     <Image Grid.Row="0" Source="{Binding AwayLogo}" Width="30" Height="30" Margin="0,2,10,2"
                            Style="{StaticResource TeamLogo}" />
-                    <TextBlock Grid.Row="0" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis" Style="{StaticResource AwayTeamText}">
-                        <Run Text="{Binding AwayName, Mode=OneWay}" /><Run Text="{Binding AwayAbbrev, Mode=OneWay, StringFormat='  {0}'}"
-                             FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource AwayTeamText}">
+                                <Setter Property="Text" Value="{Binding AwayShortName}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding UseFullNames, RelativeSource={RelativeSource AncestorType=controls:ExpandedGameCard}}" Value="True">
+                                        <Setter Property="Text" Value="{Binding AwayName}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
                     </TextBlock>
                     <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding AwayShots, StringFormat='{}{0} SOG'}" FontSize="11"
                                Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
@@ -39,9 +47,17 @@
                     <!-- Home -->
                     <Image Grid.Row="1" Source="{Binding HomeLogo}" Width="30" Height="30" Margin="0,2,10,2"
                            Style="{StaticResource TeamLogo}" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis" Style="{StaticResource HomeTeamText}">
-                        <Run Text="{Binding HomeName, Mode=OneWay}" /><Run Text="{Binding HomeAbbrev, Mode=OneWay, StringFormat='  {0}'}"
-                             FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource HomeTeamText}">
+                                <Setter Property="Text" Value="{Binding HomeShortName}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding UseFullNames, RelativeSource={RelativeSource AncestorType=controls:ExpandedGameCard}}" Value="True">
+                                        <Setter Property="Text" Value="{Binding HomeName}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
                     </TextBlock>
                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding HomeShots, StringFormat='{}{0} SOG'}" FontSize="11"
                                Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
@@ -58,6 +74,8 @@
                                                  Converter={StaticResource BoolToVisibility}}" />
                     <TextBlock Text="{Binding StatusText}" FontSize="12.5" VerticalAlignment="Center" Style="{StaticResource GameStatusText}" />
                 </DockPanel>
+
+                <TextBlock Text="{Binding HatTrickTextLong}" FontSize="12.5" Margin="0,5,0,0" Style="{StaticResource HatTrickText}" />
 
                 <controls:GoalList FontSize="12" Margin="0,6,0,0"
                                    Visibility="{Binding HasGoals, Converter={StaticResource BoolToVisibility}}" />

@@ -58,7 +58,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         _hotkeys = hotkeys;
         _dispatcher = dispatcher;
         Teams = new TeamsSectionViewModel(teams, logos);
-        _sections = [Teams];
+        HatTrick = new HatTrickSectionViewModel();
+        _sections = [Teams, HatTrick];
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(this, EventArgs.Empty));
@@ -84,6 +85,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public ICommand OpenSettingsFolderCommand { get; }
 
     public TeamsSectionViewModel Teams { get; }
+
+    public HatTrickSectionViewModel HatTrick { get; }
 
     // General
     public IReadOnlyList<int> RefreshIntervals { get; } = GeneralSettings.AllowedRefreshIntervals;
