@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Windows Forms is used only for the system tray NotifyIcon (no extra NuGet dependency). -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>NHLOverlay</RootNamespace>
+    <AssemblyName>NHLOverlay</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>NHL Live Overlay</Product>
+    <Version>0.2.0</Version>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- WFO0003 targets WinForms apps; WPF reads DPI awareness from app.manifest. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Keep WinForms/GDI namespaces out of global usings so they don't clash with WPF types. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <!-- The WPF SDK leaves these out of implicit usings. -->
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NHLOverlay.Tests" />
+  </ItemGroup>
+
+</Project>

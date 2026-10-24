@@ -1,0 +1,141 @@
+<Window x:Class="NHLOverlay.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:NHLOverlay.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+        Title="NHL Live Overlay - Settings"
+        Width="720" Height="540" MinWidth="600" MinHeight="460"
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Assets/app.ico"
+        Background="{StaticResource WindowBackgroundBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource UiFont}"
+        FontSize="13">
+    <Window.Resources>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+        <Style x:Key="ValueText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,2" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TabControl Style="{StaticResource NavTabControl}">
+            <TabControl.Resources>
+                <Style TargetType="TabItem" BasedOn="{StaticResource NavTabItem}" />
+            </TabControl.Resources>
+
+            <TabItem Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="General" Style="{StaticResource SectionHeader}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding LaunchWithWindows}"
+                                  Content="Launch with Windows" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowOverlayOnStartup}"
+                                  Content="Show the overlay on startup (otherwise start in the tray)" />
+
+                        <TextBlock Text="Refresh interval (seconds)" Style="{StaticResource FieldLabel}" />
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding RefreshIntervals}"
+                                 SelectedItem="{Binding RefreshIntervalSeconds}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Used while games are live. When nothing is live, scores are checked less often until shortly before the next game starts." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Appearance">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Appearance" Style="{StaticResource SectionHeader}" />
+
+                        <TextBlock Text="Background opacity" Style="{StaticResource FieldLabel}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="56" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Style="{StaticResource DarkSlider}" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10"
+                                    Value="{Binding BackgroundOpacityPercent}" />
+                            <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center"
+                                       Text="{Binding BackgroundOpacityPercent, StringFormat={}{0:0} %}" />
+                        </Grid>
+
+                        <TextBlock Text="UI scale" Style="{StaticResource FieldLabel}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="56" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Style="{StaticResource DarkSlider}" Minimum="75" Maximum="200" SmallChange="5" LargeChange="25"
+                                    Value="{Binding UiScalePercent}" />
+                            <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center"
+                                       Text="{Binding UiScalePercent, StringFormat={}{0:0} %}" />
+                        </Grid>
+
+                        <TextBlock Text="Game cards" Style="{StaticResource FieldLabel}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowGameClock}"
+                                  Content="Show the game clock" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowShotsOnGoal}"
+                                  Content="Show shots on goal" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Advanced">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Advanced" Style="{StaticResource SectionHeader}" />
+
+                        <TextBlock Text="NHL API status" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <TextBlock Text="{Binding ApiStatus}" Style="{StaticResource ValueText}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ApiEndpoint}" Style="{StaticResource Hint}" Margin="0" />
+
+                        <TextBlock Text="Last successful refresh" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{Binding LastSuccessText}" Style="{StaticResource ValueText}" />
+
+                        <TextBlock Text="Last API error" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{Binding LastErrorText}" Style="{StaticResource ValueText}" />
+
+                        <Button Style="{StaticResource DarkButton}" Content="Refresh now" HorizontalAlignment="Left"
+                                Margin="0,12,0,0" Command="{Binding RefreshNowCommand}" />
+
+                        <TextBlock Text="Settings file" Style="{StaticResource FieldLabel}" Margin="0,24,0,6" />
+                        <TextBlock Text="{Binding StorageMode}" Style="{StaticResource ValueText}" />
+                        <TextBox Style="{StaticResource ReadOnlyField}" Text="{Binding SettingsPath, Mode=OneWay}" Margin="0,6,0,0" />
+                        <TextBlock Text="{Binding LoadWarning}" Style="{StaticResource Hint}" Foreground="{StaticResource StatusStaleBrush}"
+                                   Visibility="{Binding HasLoadWarning, Converter={StaticResource BoolToVisibility}}" />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Style="{StaticResource DarkButton}" Content="Open folder" Margin="0,0,8,0"
+                                    Command="{Binding OpenSettingsFolderCommand}" />
+                            <Button Style="{StaticResource DarkButton}" Content="Reset to defaults"
+                                    Command="{Binding ResetCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource DarkButton}" Content="Cancel" IsCancel="True" Margin="0,0,8,0"
+                        Command="{Binding CancelCommand}" />
+                <Button Style="{StaticResource AccentButton}" Content="Save" IsDefault="True"
+                        Command="{Binding SaveCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

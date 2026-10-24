@@ -1,0 +1,53 @@
+using NHLOverlay.Models;
+
+namespace NHLOverlay.Services;
+
+/// <summary>Immutable view of the scoreboard at one point in time.</summary>
+public sealed record ScoreboardSnapshot
+{
+    public static readonly ScoreboardSnapshot Empty = new();
+
+    public IReadOnlyList<HockeyGame> Games { get; init; } = [];
+
+    /// <summary>When every request of a refresh last succeeded. Null until the first success.</summary>
+    public DateTimeOffset? LastSuccessUtc { get; init; }
+
+    /// <summary>True once any data has been received (the games may still be partially stale).</summary>
+    public bool HasData { get; init; }
+
+    /// <summary>True when the most recent refresh failed and cached data is being shown.</summary>
+    public bool IsStale { get; init; }
+
+    public string? LastError { get; init; }
+
+    public DateTimeOffset? LastErrorUtc { get; init; }
+
+    public DateTimeOffset? NextRefreshUtc { get; init; }
+}
+
+/// <summary>
+/// Single source of truth for the current game state. The polling service publishes snapshots here;
+/// the overlay (and later hat-trick detection and notifications) subscribe to <see cref="Changed"/>.
+/// </summary>
+public sealed class GameStateService
+{
+    private readonly Lock _gate = new();
+    private ScoreboardSnapshot _current = ScoreboardSnapshot.Empty;
+
+    public ScoreboardSnapshot Current
+    {
+        get
+        {
+            lock (_gate) return _current;
+        }
+    }
+
+    /// <summary>Raised on a background thread; UI subscribers must marshal to the dispatcher.</summary>
+    public event EventHandler<ScoreboardSnapshot>? Changed;
+
+    public void Publish(ScoreboardSnapshot snapshot)
+    {
+        lock (_gate) _current = snapshot;
+        Changed?.Invoke(this, snapshot);
+    }
+}
