@@ -1,16 +1,18 @@
 # NHL Live Overlay
 
-A lightweight, always-on-top Windows overlay that shows live NHL scores while you play
-(or do anything else). Native C# / WPF on .NET 10. No Electron, no installer, no admin rights.
+A lightweight, always-on-top Windows overlay for live NHL scores (and optionally Finnish Liiga), made to sit
+on top of a game such as World of Warcraft, or on a second monitor. Native C# / WPF on .NET 10: no Electron,
+no installer, no admin rights, no injection into games.
 
-> Status: phases 1-3 of the roadmap are done (foundation, live scoreboard, overlay behavior), plus
-> logos, an expanded view and day navigation. See [Roadmap](#roadmap) for what is still missing.
+Highlights: Hat-Trick Watch, notifications with voice, a gaming profile, a Finnish players watch, a morning
+recap, a spoiler shield, a focus dashboard with a live shot map, standings with the playoff race, and
+shutout / milestone / point-streak watches.
 
 ## Requirements
 
 - Windows 10 or 11 (x64)
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) to build
-  (`winget install Microsoft.DotNet.SDK.10`). The published self-contained build needs no runtime.
+  (`winget install Microsoft.DotNet.SDK.10`). The published build needs no .NET installation.
 
 ## Build, test, run
 
@@ -31,150 +33,156 @@ dotnet publish src/NHLOverlay/NHLOverlay.csproj `
   -p:PublishSingleFile=true
 ```
 
-The output in `src/NHLOverlay/bin/Release/net10.0-windows/win-x64/publish/` is a single
-`NHLOverlay.exe` that runs without installing .NET.
+Output: `src/NHLOverlay/bin/Release/net10.0-windows/win-x64/publish/NHLOverlay.exe` (about 170 MB, runs
+without .NET installed). Add `-p:EnableCompressionInSingleFile=true` for a ~73 MB exe; this costs roughly
+130 MB more RAM at run time, which is why it is off by default.
 
-## Using it
+## Everyday use
 
-The app lives in the **system tray**: left-click the icon to show/hide the overlay, right-click for
-*Interaction mode*, *Expanded view*, *Refresh now*, *Settings...* and *Exit*. Closing the overlay only
-hides it. Only one instance runs at a time.
+The app lives in the **system tray**. Left-click the icon to show or hide the overlay; right-click for
+interaction mode, expanded view, the game filter, Do Not Disturb, refresh, settings and exit.
 
 ### Interaction mode vs. click-through
 
-| Mode | Mouse | Visible controls |
-|------|-------|------------------|
-| Interaction (blue outline) | The overlay takes clicks: drag the header, click a game for its goals, change days | Day arrows, view toggle, settings, resize grip |
-| Click-through | Every click goes to the game underneath | None, just scores |
+| Mode | Mouse | What you see |
+|------|-------|--------------|
+| Interaction (blue outline) | The overlay takes clicks: drag the header, click a game for details, change days | Day arrows, standings, view toggle, settings, resize grip |
+| Click-through | Every click goes to the game underneath | Scores only |
 
-The overlay never takes keyboard focus from the game in either mode. Switch modes with **Ctrl+Alt+I**
-or the tray menu.
+The overlay never takes keyboard focus from the game, in either mode.
 
-### Hotkeys (global, configurable in Settings > Overlay)
+### Hotkeys (global; change them in Settings > Overlay)
 
 | Default | Action |
 |---------|--------|
 | Ctrl+Alt+N | Show / hide the overlay |
-| Ctrl+Alt+I | Toggle interaction / click-through mode |
+| Ctrl+Alt+I | Interaction / click-through (also overrides the gaming profile's click-through) |
+| Ctrl+Alt+D | Do Not Disturb: hold all alerts, show a summary when switched off |
 
-If another application already owns a combination, the settings window says so (and it is logged).
-Hotkeys need Ctrl, Alt or Win so they can never steal a plain game key.
+Conflicts with other applications are shown in the settings window. Ctrl, Alt or Win is required so a hotkey
+can never take a plain game key.
 
-### Size, scale and multiple monitors
+### Views, size and monitors
 
-- **Ctrl + mouse wheel** over the overlay scales everything (75-300 %); logos are vectors and stay sharp.
-- Drag the **bottom-right grip** to change the width.
-- **Expanded view** (header button, tray or settings) shows logos, team names, shots on goal and every
-  goal with PP/SH/EN tags. It suits a large or vertical monitor; the list scrolls if it is taller
-  than the screen.
-- The position is stored in physical pixels, so it is restored on the right monitor even when monitors
-  use different scaling. If that monitor is gone, the overlay returns to the top-right of the primary
-  screen. It is kept inside the screen when it grows, and snaps to screen edges when dragged near them.
+- **Compact** (one line per game) and **expanded** (logos, team names, shots, every goal with PP/SH/EN tags).
+  Switch with the header button, the tray or Settings > Appearance.
+- **Standings** (list icon in the header): favorite teams' position, form, distance to the playoff cut line
+  with games in hand, and their next five games; division and wildcard tables; the playoff bracket in spring.
+- **Ctrl + mouse wheel** over the overlay scales it (75-300 %); drag the bottom-right grip to change its width.
+  Logos are vectors and stay sharp.
+- The position is stored in physical pixels per monitor (correct across mixed DPI). If the monitor is gone the
+  overlay returns to the primary screen; it is kept inside the screen when it grows and snaps to edges.
 
 ### Today, tonight and yesterday
 
-"Today" is your **hockey day**: 08:00 to 08:00 local time. In Finland, tonight's games that start at
-02:00 count as today (shown as just `2.00`), and the view switches to the next slate in the morning.
-A game from last night that is still being played stays on the today view until it is final.
+"Today" is your **hockey day**, 08:00 to 08:00 local time: in Finland tonight's 02:00 games count as today.
+The **< >** arrows browse 7 days back and to tomorrow; yesterday is preloaded so it opens instantly. The view
+returns to today after 2 minutes. A game from last night that is still running stays on today's view.
 
-Use the **< >** arrows in the header to browse up to 7 days back (and tomorrow). Yesterday is always
-preloaded, so it opens instantly. The view returns to today automatically after 2 minutes so live
-scores are never hidden for long; click the day label to return sooner.
+### Click a game (interaction mode)
 
-### What the compact cards show
+Compact cards open their goal list plus **Hide score** (spoiler shield), **Focus** (dashboard) and **NHL.com**.
+Expanded cards have the same as icon buttons.
 
-```
-LAK  2 - 1  NJD    2ND 08:14     live: period + clock (green)
-TOR  0 - 0  EDM    1ST INT       intermission (light blue)
-FLA  3 - 3  NYR    OT 03:12      overtime / shootout (orange)
-ANA  5 - 4  PHI    FINAL/SO      finished, with OT/SO suffix (grey)
-SJS  @  BOS        2.00          upcoming tonight: local start time
-SJS  @  BOS        SUN 20.00     upcoming on another day
-```
+## Features
 
-Team logos appear next to the abbreviations. Times use your Windows time zone and regional format.
+**Favorites and filters.** Pick teams in Settings > Teams (Liiga teams too when Liiga is on). Favorites are
+highlighted, listed first in their group and drive the favorites-only notifications. The today view can be
+filtered: all, favorites, live, live and upcoming, hat-trick watch, completed.
 
-## Settings
+**Hat-Trick Watch.** Players with two goals in a game get an amber card highlight while the game is live; three
+goals show "HAT TRICK!" for the rest of the game day. Counts come from the game's own goal list (stable player
+ids; shootout goals never count; scoring changes are followed; a briefly missing goal list keeps the last result).
 
-Stored as readable JSON in `%AppData%\NHLOverlay\settings.json`. Invalid or missing values fall back
-to defaults per section; a corrupt file is backed up as `settings.corrupt-<timestamp>.json`.
+**Notifications.** Per event and channel (Settings > Notifications): puck drop, goals, hat-trick watch, hat trick,
+overtime/shootout, close game, final, "worth switching to", watched players' points, shutout watch, milestones and
+point streaks; each to the overlay, a Windows notification, a sound (synthesized horn/chime/fanfare) and/or the
+Windows voice (Microsoft David/Zira). Events are deduplicated by stable keys; on startup and at the morning
+rollover the current state is only recorded, never replayed. Bursts after a reconnect are summarized. Quiet hours
+mute sound and voice. "Worth switching to" scores late ties, comebacks and hat-trick chances, at most once per
+10 minutes.
 
-| Tab        | Setting                         | Default |
-|------------|---------------------------------|---------|
-| General    | Launch with Windows             | off (per-user `Run` registry key) |
-| General    | Show overlay on startup         | on (off = start in tray) |
-| General    | Refresh interval                | 30 s (15 / 30 / 60 / 120) |
-| Appearance | View                            | Compact (or Expanded) |
-| Appearance | Background opacity              | 85 % |
-| Appearance | UI scale                        | 100 % (75-300 %) |
-| Appearance | Team logos / game clock         | on |
-| Appearance | Shots on goal in compact view   | off |
-| Overlay    | Click-through                   | off |
-| Overlay    | Always on top                   | on |
-| Overlay    | Lock position and size          | off |
-| Overlay    | Snap to screen edges            | on |
-| Overlay    | Hotkeys                         | Ctrl+Alt+N, Ctrl+Alt+I |
+**Gaming profile.** When a listed game (default: Wow, WowClassic) is the active window: compact view,
+click-through, and your choice of sounds, voice and Windows notifications. Only the active window's process name
+is read (a WinEvent hook, no polling, nothing touches the game).
 
-**Portable mode:** put an empty file named `portable` (or a `settings.json`) next to `NHLOverlay.exe`.
-If that folder is writable, settings and the logo cache are stored there instead.
+**Finnish players watch.** "FINNS TONIGHT" lists Finnish players with points, and goalies with saves, above the
+games; cards show them too, and their goals and assists can alert you. Other countries can be chosen in Settings >
+Players. Nationality is the birth country on the team roster.
 
-Logs: `logs\nhloverlay.log` in the settings folder (capped at about 1 MB, one rollover file).
-Logo cache: `%LocalAppData%\NHLOverlay\cache\logos` (refreshed every 30 days; safe to delete).
+**Morning recap.** From 08:00 until a chosen hour (default 14:00): your teams' results, hat tricks, shutouts
+(goalie from the boxscore), the biggest comeback, OT/SO games, the highest-scoring game and watched players'
+points. Dismiss it with its × button; it also appears above yesterday's games.
 
-## NHL API usage
+**Spoiler shield.** "Hide score" on a card, or always for chosen teams (Settings > Recap & spoilers). A hidden game
+shows no score, period details, goals, hat-trick or country lines, recap entry or alerts until you reveal it.
 
-Data comes from the public NHL web API `https://api-web.nhle.com/v1/` (no key required, but not an
-officially supported third-party API; it may change without notice).
+**Focus dashboard.** A resizable window for one game, meant for a second or vertical monitor: big score, strength
+strip (power play with an approximate countdown, pulled goalie, 4 on 4), shots by period, a to-scale shot map
+(away team attacks right) and a play-by-play feed. It remembers its monitor, position and size.
 
-- `GET /score/{yyyy-MM-dd}` for every refresh. Unlike `/scoreboard/now`, it includes the game clock,
-  shots on goal and each game's goal list with player ids (used for goal details now and Hat-Trick
-  Watch next), so no per-game requests are needed.
-- **Which dates are loaded:** yesterday's and today's NHL dates (see "hockey day" above), plus a date
-  you browse to. The hockey day is mapped to the NHL date being played that local evening, which is
-  correct for every time zone from Hawaii to eastern Europe, across all DST changes.
-- **Request budget:** one request per loaded date per refresh. Dates whose games are all official
-  (`OFF`) or postponed/cancelled are cached and never requested again. When nothing is live, polling
-  slows to every 5 minutes and resumes the normal interval 10 minutes before the next start.
-- **Failures:** the last good scoreboard stays on screen (amber dot). Retries back off
-  exponentially (30 s, 60 s, 120 s ... up to 5 min) and honor `Retry-After`. Requests time out after 15 s.
-- **Logos:** `https://assets.nhle.com/logos/nhl/svg/{TEAM}_dark.svg` (dark-background variant, falling
-  back to the URL the API supplies), rendered with [SharpVectors](https://github.com/ElinamLLC/SharpVectors).
+**Watches.** Shutout watch late in the third and on completion; career milestones (first goal or point, 50 goals,
+every 100 goals/assists/points) with "1 goal from 500" card lines; point streaks of at least 5 games (adjustable).
+By default for favorite teams' and watched-country players.
+
+**Liiga (off by default).** Settings > General > Leagues. Liiga games appear in their own section with scores,
+clocks, goals, logos, hat tricks, favorites and notifications. Standings, the focus dashboard and the player
+watches are NHL only.
+
+## Settings and files
+
+| What | Where |
+|------|-------|
+| Settings | `%AppData%\NHLOverlay\settings.json` (readable JSON; a corrupt file is backed up, bad sections reset) |
+| Shield marks, recap dismissal | `%AppData%\NHLOverlay\state.json` |
+| Log | `%AppData%\NHLOverlay\logs\nhloverlay.log` (about 1 MB, one rollover) |
+| Cache (logos, standings, rosters, schedules, player stats) | `%LocalAppData%\NHLOverlay\cache` (safe to delete) |
+
+**Portable mode:** put an empty file named `portable` (or a `settings.json`) next to `NHLOverlay.exe`; if that
+folder is writable, settings, state, logs and cache live there.
+
+Settings > Advanced shows the API status, last refresh and last error, and can refresh now, reset, export and
+import settings (import keeps this computer's window positions).
+
+## Data sources and request budget
+
+Public, unofficial APIs; no keys. Fields were verified against live responses in October 2026.
+
+| Data | Endpoint | How often |
+|------|----------|-----------|
+| Scores, clock, shots, goals | `api-web.nhle.com/v1/score/{date}` | refresh interval (default 30 s) for yesterday + today; finished days are cached for good; every 5 min when nothing is live |
+| Standings | `/standings/now` | every 2 h and a few minutes after a game ends |
+| Rosters (birth country) | `/roster/{team}/current` | once a day per team playing |
+| Goalie lines | `/gamecenter/{id}/boxscore` | only for watched-country goalies and shutouts; every 2 min while live, once when official |
+| Team schedules | `/club-schedule-season/{team}/now` | favorite teams, twice a day |
+| Playoff bracket | `/playoff-bracket/{year}` | during the playoffs, every 30 min while shown |
+| Play-by-play | `/gamecenter/{id}/play-by-play` | only the focused game, only while the dashboard is open |
+| Player careers | `/player/{id}/landing` (+ `game-log/now` for long streaks) | once a day per player in watch scope |
+| Logos | `assets.nhle.com/logos/nhl/svg/*` | once per 30 days |
+| Liiga | `liiga.fi/api/v2/games?date={date}` | same rhythm as NHL scores, when enabled |
+
+Failures keep the last good data on screen (amber dot) and back off exponentially (honoring `Retry-After`).
 
 ## Project layout
 
 ```
-NHLOverlay.sln
 src/NHLOverlay/
-  Models/        HockeyGame, HockeyTeam, GameGoal, GameStatus, AppSettings, HotkeyGesture
-  Services/      NhlApiService (+ Api/ DTOs and mapper), ScorePollingService, GameStateService,
-                 SettingsService, LogoService, HotkeyService
-  ViewModels/    OverlayViewModel, GameCardViewModel, SettingsViewModel
-  Views/         OverlayWindow, SettingsWindow
-  Controls/      GameCard (compact), ExpandedGameCard, GoalList, HotkeyBox
-  Helpers/       NhlCalendar, GameStatusFormatter, GameOrdering, GlobalHotkeys, TrayIcon,
-                 NativeMethods, Log, ...
-  Themes/        Dark.xaml
-tests/NHLOverlay.Tests/
-  Fixtures/      captured real API responses (live day, day with OT/SO finals)
+  Models/        games, goals, settings, events, standings, rosters, play-by-play, ...
+  Services/      API clients (NHL, Liiga), polling, state, event detection, notifications, sound, speech,
+                 watches, recap, spoilers, rosters, boxscores, schedules, logos, hotkeys, settings
+  ViewModels/    overlay, cards, standings, focus dashboard, toasts, Settings/ (one view model per tab)
+  Views/         overlay, settings, focus windows
+  Controls/      compact/expanded cards, goal list, standings view, hotkey box
+  Helpers/       calendar (hockey day), formatting, ordering, playoff race, milestones, Win32 interop, tray, log
+tests/NHLOverlay.Tests/   unit tests with captured API responses in Fixtures/ (run offline)
 ```
-
-Business logic (parsing, state derivation, date handling, polling, settings, hotkey parsing, logo
-caching) does not depend on the UI and is covered by unit tests that run offline.
 
 ## Known limitations
 
-- Overlays work above windowed and borderless-fullscreen games. True exclusive-fullscreen games draw
-  over every other window; that is a Windows limitation, not something this app works around
-  (no injection or hooking, so nothing for anti-cheat to object to).
-- Team names in the expanded view are the NHL's short names ("Kings", not "Los Angeles Kings").
-- The single-file build is large (about 165 MB) because WPF cannot be trimmed; compression is planned.
-
-## Roadmap
-
-1. ~~Foundation: solution, overlay shell, settings window and persistence, tray~~
-2. ~~Real NHL scoreboard: API client, parsing, polling, time zones, loading/empty/error states~~
-3. ~~Overlay behavior: click-through, global hotkeys, no-activate, multi-monitor/DPI, resize, scale~~
-4. Favorite teams, highlighting, sorting and filters
-5. Hat-Trick Watch
-6. Notifications
-7. Polish: release packaging, single-file compression, resource review
+- Overlays work above windowed and borderless-fullscreen games, not exclusive fullscreen (a Windows limitation).
+- The NHL and Liiga APIs are unofficial and can change without notice.
+- The power-play countdown is an estimate from penalty times; the strength itself comes from the NHL's
+  situation code.
+- Nationality uses birth country (a player born abroad who represents Finland is not counted).
+- Career totals for milestones refresh once a day; a milestone is detected as soon as the goal appears.
+- Not implemented: horizontal ticker layout, light theme, automatic updates.

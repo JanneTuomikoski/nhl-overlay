@@ -164,16 +164,39 @@ public sealed class SettingsService
         Changed?.Invoke(this, snapshot);
     }
 
-    public void ResetToDefaults()
+    public void ResetToDefaults() => Replace(new AppSettings().Normalize());
+
+    /// <summary>Writes the current settings as readable JSON (e.g. to move them to another computer).</summary>
+    public void Export(string path) => File.WriteAllText(path, JsonSerializer.Serialize(Current, JsonOptions));
+
+    /// <summary>
+    /// Replaces the settings with an exported file. Screen positions are kept from this computer, because
+    /// monitor layouts differ between machines. Returns a warning for sections that were invalid and reset.
+    /// Throws <see cref="JsonException"/> or <see cref="IOException"/> when the file can't be used at all.
+    /// </summary>
+    public string? Import(string path)
     {
-        var defaults = new AppSettings().Normalize();
+        var imported = Parse(File.ReadAllText(path), out var broken);
+        var current = Current;
+        imported.Window.ScreenX = current.Window.ScreenX;
+        imported.Window.ScreenY = current.Window.ScreenY;
+        imported.Focus.ScreenX = current.Focus.ScreenX;
+        imported.Focus.ScreenY = current.Focus.ScreenY;
+        imported.Focus.PixelWidth = current.Focus.PixelWidth;
+        imported.Focus.PixelHeight = current.Focus.PixelHeight;
+        Replace(imported);
+        return broken.Count > 0 ? $"Invalid values in section(s) {string.Join(", ", broken)} were reset to defaults." : null;
+    }
+
+    private void Replace(AppSettings settings)
+    {
         lock (_gate)
         {
-            Current = defaults;
-            TrySave(defaults);
+            Current = settings;
+            TrySave(settings);
         }
 
-        Changed?.Invoke(this, defaults);
+        Changed?.Invoke(this, settings);
     }
 
     public static AppSettings Clone(AppSettings settings) =>

@@ -13,8 +13,11 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Product>NHL Live Overlay</Product>
-    <Version>0.3.0</Version>
+    <Version>0.9.0</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Single-file compression would halve the exe (about 73 MB) but costs roughly 130 MB more RAM at run time,
+         which matters more next to a game. Opt in with -p:EnableCompressionInSingleFile=true. -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
     <!-- WFO0003 targets WinForms apps; WPF reads DPI awareness from app.manifest. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>

@@ -167,6 +167,39 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void Export_and_import_round_trip_but_keep_local_window_positions()
+    {
+        var source = CreateService();
+        source.Update(s =>
+        {
+            s.Teams.Favorites = ["EDM", "NJD"];
+            s.General.ShowLiiga = true;
+            s.Window.ScreenX = 4000;
+        });
+        var file = Path.Combine(_directory, "export.json");
+        source.Export(file);
+
+        var target = new SettingsService(Path.Combine(_directory, "other"), isPortable: false);
+        target.Update(s => s.Window.ScreenX = -1200);
+        Assert.Null(target.Import(file));
+
+        Assert.Equal(["EDM", "NJD"], target.Current.Teams.Favorites);
+        Assert.True(target.Current.General.ShowLiiga);
+        Assert.Equal(-1200, target.Current.Window.ScreenX);
+    }
+
+    [Fact]
+    public void Import_rejects_a_file_that_is_not_settings()
+    {
+        WriteSettingsFile("{}");
+        var service = CreateService();
+        var file = Path.Combine(_directory, "garbage.json");
+        File.WriteAllText(file, "not json at all");
+
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => service.Import(file));
+    }
+
+    [Fact]
     public void Team_settings_are_normalized()
     {
         WriteSettingsFile("""{ "teams": { "favorites": [" edm", "EDM", "", "tor"], "filter": "Live", "sortOrder": "StartTime" } }""");

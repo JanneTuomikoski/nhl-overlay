@@ -74,6 +74,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         RefreshNowCommand = new RelayCommand(refreshNow);
         ResetCommand = new RelayCommand(Reset);
         OpenSettingsFolderCommand = new RelayCommand(OpenSettingsFolder);
+        ExportCommand = new RelayCommand(Export);
+        ImportCommand = new RelayCommand(Import);
 
         LoadFrom(settings.Current);
         _stateHandler = (_, snapshot) => _dispatcher.InvokeAsync(() => UpdateStatus(snapshot));
@@ -91,6 +93,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public ICommand RefreshNowCommand { get; }
     public ICommand ResetCommand { get; }
     public ICommand OpenSettingsFolderCommand { get; }
+    public ICommand ExportCommand { get; }
+    public ICommand ImportCommand { get; }
 
     public TeamsSectionViewModel Teams { get; }
 
@@ -238,6 +242,43 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         _settings.ResetToDefaults();
         StartupRegistration.Apply(_settings.Current.General.LaunchWithWindows);
         LoadFrom(_settings.Current);
+    }
+
+    private void Export()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = "NHLOverlay-settings.json",
+            Filter = "JSON settings (*.json)|*.json",
+            DefaultExt = ".json",
+        };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            _settings.Export(dialog.FileName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show($"Could not export the settings: {ex.Message}", "NHL Live Overlay", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void Import()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "JSON settings (*.json)|*.json|All files (*.*)|*.*" };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            var warning = _settings.Import(dialog.FileName);
+            StartupRegistration.Apply(_settings.Current.General.LaunchWithWindows);
+            LoadFrom(_settings.Current);
+            MessageBox.Show(warning ?? "Settings imported.", "NHL Live Overlay", MessageBoxButton.OK,
+                warning is null ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            MessageBox.Show($"That file could not be imported: {ex.Message}", "NHL Live Overlay", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void OpenSettingsFolder()
