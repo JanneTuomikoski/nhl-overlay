@@ -83,6 +83,9 @@
                                 </Style>
                             </Button.Style>
                         </Button>
+                        <Button Style="{StaticResource IconButton}" Content="&#xE9D9;" Margin="2,0,0,0"
+                                ToolTip="Live dashboard: strength, shots, shot map and play-by-play" AutomationProperties.Name="Open focus dashboard"
+                                Command="{Binding FocusCommand}" />
                         <Button Style="{StaticResource IconButton}" Content="&#xE8A7;" Margin="2,0,0,0"
                                 ToolTip="Open the NHL game page" AutomationProperties.Name="Open game page"
                                 Command="{Binding OpenGameCenterCommand}" />

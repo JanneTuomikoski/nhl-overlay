@@ -32,6 +32,8 @@ public sealed class AppSettings
 
     public RecapSettings Recap { get; set; } = new();
 
+    public FocusSettings Focus { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -47,6 +49,7 @@ public sealed class AppSettings
         CountryWatch = (CountryWatch ?? new()).Normalize();
         Spoilers = (Spoilers ?? new()).Normalize();
         Recap = (Recap ?? new()).Normalize();
+        Focus = (Focus ?? new()).Normalize();
         return this;
     }
 

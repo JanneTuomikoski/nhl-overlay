@@ -32,6 +32,10 @@ public interface INhlApiClient
     /// <summary>Playoff series for the season ending in <paramref name="year"/>.</summary>
     Task<IReadOnlyList<PlayoffSeries>> GetPlayoffBracketAsync(int year, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    /// <summary>Every recorded event of one game (shots with coordinates, penalties, goals, ...).</summary>
+    Task<PlayByPlay> GetPlayByPlayAsync(long gameId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 /// <summary>Failure talking to the NHL API. <see cref="RetryAfter"/> is set when the server asked us to back off.</summary>
@@ -104,6 +108,13 @@ public sealed class NhlApiService : INhlApiClient, IDisposable
     {
         var dto = await GetJsonAsync<BracketDto>($"playoff-bracket/{year.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         return NhlMapper.MapBracket(dto);
+    }
+
+    public async Task<PlayByPlay> GetPlayByPlayAsync(long gameId, CancellationToken cancellationToken)
+    {
+        var dto = await GetJsonAsync<PlayByPlayDto>($"gamecenter/{gameId}/play-by-play", cancellationToken).ConfigureAwait(false)
+                  ?? throw new NhlApiException($"Empty play-by-play for game {gameId}.");
+        return NhlMapper.MapPlayByPlay(dto);
     }
 
     internal async Task<T?> GetJsonAsync<T>(string path, CancellationToken cancellationToken)

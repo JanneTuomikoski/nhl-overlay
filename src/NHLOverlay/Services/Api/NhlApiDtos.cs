@@ -71,6 +71,65 @@ internal sealed class GameOutcomeDto
     public string? LastPeriodType { get; set; }
 }
 
+internal sealed class PlayByPlayDto
+{
+    public long Id { get; set; }
+    public int? GameType { get; set; }
+    public PbpTeamDto? AwayTeam { get; set; }
+    public PbpTeamDto? HomeTeam { get; set; }
+    public List<PlayDto>? Plays { get; set; }
+    public List<RosterSpotDto>? RosterSpots { get; set; }
+}
+
+internal sealed class PbpTeamDto
+{
+    public int? Id { get; set; }
+    public string? Abbrev { get; set; }
+}
+
+internal sealed class PlayDto
+{
+    public long? EventId { get; set; }
+    public int? SortOrder { get; set; }
+    public PeriodDescriptorDto? PeriodDescriptor { get; set; }
+    public string? TimeInPeriod { get; set; }
+    public string? SituationCode { get; set; }
+    public string? TypeDescKey { get; set; }
+    public string? HomeTeamDefendingSide { get; set; }
+    public PlayDetailsDto? Details { get; set; }
+}
+
+internal sealed class PlayDetailsDto
+{
+    public int? XCoord { get; set; }
+    public int? YCoord { get; set; }
+    public string? ShotType { get; set; }
+    public int? EventOwnerTeamId { get; set; }
+    public long? ShootingPlayerId { get; set; }
+    public long? ScoringPlayerId { get; set; }
+    public long? Assist1PlayerId { get; set; }
+    public long? Assist2PlayerId { get; set; }
+    public long? GoalieInNetId { get; set; }
+    public long? HittingPlayerId { get; set; }
+    public long? HitteePlayerId { get; set; }
+    public long? BlockingPlayerId { get; set; }
+    public long? CommittedByPlayerId { get; set; }
+    public long? DrawnByPlayerId { get; set; }
+    public long? PlayerId { get; set; }
+    public string? DescKey { get; set; }
+    public int? Duration { get; set; }
+    public int? AwayScore { get; set; }
+    public int? HomeScore { get; set; }
+}
+
+internal sealed class RosterSpotDto
+{
+    public int? TeamId { get; set; }
+    public long PlayerId { get; set; }
+    public LocalizedStringDto? FirstName { get; set; }
+    public LocalizedStringDto? LastName { get; set; }
+}
+
 internal sealed class ClubScheduleDto
 {
     public List<GameDto>? Games { get; set; }

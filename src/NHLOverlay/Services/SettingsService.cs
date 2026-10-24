@@ -127,6 +127,7 @@ public sealed class SettingsService
             CountryWatch = ReadSection<CountryWatchSettings>(root, "countryWatch", brokenSections),
             Spoilers = ReadSection<SpoilerSettings>(root, "spoilers", brokenSections),
             Recap = ReadSection<RecapSettings>(root, "recap", brokenSections),
+            Focus = ReadSection<FocusSettings>(root, "focus", brokenSections),
         };
         return settings.Normalize();
     }

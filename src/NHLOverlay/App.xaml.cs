@@ -22,6 +22,9 @@ public partial class App : Application
     private RosterService? _rosters;
     private BoxscoreService? _boxscores;
     private ScheduleService? _schedules;
+    private FocusGameService? _focus;
+    private SpoilerService? _spoilers;
+    private FocusWindow? _focusWindow;
     private ScorePollingService? _polling;
     private GameStateService? _state;
     private RuntimeState? _runtime;
@@ -97,9 +100,11 @@ public partial class App : Application
 
         // Overlay
         var standings = new StandingsViewModel(_teams, _schedules, _logos);
+        _focus = new FocusGameService(_api, () => TimeSpan.FromSeconds(_settings.Current.General.RefreshIntervalSeconds));
+        _spoilers = spoilers;
         var overlayViewModel = new OverlayViewModel(
             _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, spoilers, recaps, standings, _schedules,
-            _polling.SetViewedDate, Dispatcher);
+            _polling.SetViewedDate, ShowFocus, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings, _runtime);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);
@@ -191,6 +196,28 @@ public partial class App : Application
         if (clickThrough && !_overlay.IsVisible) _overlay.Show();
     }
 
+    /// <summary>Opens (or retargets) the focus dashboard window for a game.</summary>
+    private void ShowFocus(long gameId)
+    {
+        if (_focus is null) return;
+        _focus.Focus(gameId);
+        if (_focusWindow is null)
+        {
+            var viewModel = new FocusViewModel(_focus, _state!, _settings!, _logos!, _teams!, _spoilers!, Dispatcher);
+            _focusWindow = new FocusWindow(viewModel, _settings!);
+            _focusWindow.Closed += (_, _) =>
+            {
+                _focusWindow = null;
+                _focus?.Stop();
+            };
+            _focusWindow.Show();
+        }
+
+        ((FocusViewModel)_focusWindow.DataContext).Refresh();
+        if (_focusWindow.WindowState == WindowState.Minimized) _focusWindow.WindowState = WindowState.Normal;
+        _focusWindow.Activate();
+    }
+
     private void ToggleDoNotDisturb()
     {
         if (_runtime is null) return;
@@ -237,6 +264,7 @@ public partial class App : Application
         _rosters?.Dispose();
         _boxscores?.Dispose();
         _schedules?.Dispose();
+        _focus?.Dispose();
         _api?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();

@@ -93,14 +93,19 @@ public sealed class GameCardViewModel : ObservableObject
     /// <param name="id">NHL game id.</param>
     /// <param name="logos">Logo source.</param>
     /// <param name="setShielded">Spoiler shield action: (gameId, hide) where hide=false reveals the score.</param>
-    public GameCardViewModel(long id, LogoService logos, Action<long, bool>? setShielded = null)
+    /// <param name="openFocus">Opens the focus dashboard for a game.</param>
+    public GameCardViewModel(long id, LogoService logos, Action<long, bool>? setShielded = null, Action<long>? openFocus = null)
     {
         Id = id;
         _logos = logos;
         ToggleDetailsCommand = new RelayCommand(() => IsDetailsOpen = !IsDetailsOpen);
         OpenGameCenterCommand = new RelayCommand(OpenGameCenter, () => _gameCenterUrl is not null);
         ToggleShieldCommand = new RelayCommand(() => setShielded?.Invoke(Id, !IsShielded), () => setShielded is not null);
+        FocusCommand = new RelayCommand(() => openFocus?.Invoke(Id), () => openFocus is not null);
     }
+
+    /// <summary>Opens this game in the focus dashboard window.</summary>
+    public ICommand FocusCommand { get; }
 
     public long Id { get; }
 

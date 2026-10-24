@@ -15,6 +15,34 @@ public sealed class SpoilerSettings
     }
 }
 
+/// <summary>The focus dashboard window (one pinned game).</summary>
+public sealed class FocusSettings
+{
+    /// <summary>Top-left corner and size in physical pixels; null = centered on the primary screen.</summary>
+    public int? ScreenX { get; set; }
+
+    public int? ScreenY { get; set; }
+
+    public int? PixelWidth { get; set; }
+
+    public int? PixelHeight { get; set; }
+
+    public bool AlwaysOnTop { get; set; }
+
+    public bool ShowShotsInFeed { get; set; }
+
+    public bool ShowHitsInFeed { get; set; }
+
+    public bool ShowMissedShotsOnMap { get; set; }
+
+    internal FocusSettings Normalize()
+    {
+        if (PixelWidth is < 200 or > 8000) PixelWidth = null;
+        if (PixelHeight is < 200 or > 8000) PixelHeight = null;
+        return this;
+    }
+}
+
 /// <summary>The "last night" summary shown in the morning.</summary>
 public sealed class RecapSettings
 {

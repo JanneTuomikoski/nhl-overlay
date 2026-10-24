@@ -135,6 +135,89 @@ internal static class NhlMapper
         })
         .ToList();
 
+    public static PlayByPlay MapPlayByPlay(PlayByPlayDto dto)
+    {
+        var away = dto.AwayTeam?.Abbrev ?? "";
+        var home = dto.HomeTeam?.Abbrev ?? "";
+        string? TeamOf(int? id) => id is null ? null : id == dto.AwayTeam?.Id ? away : id == dto.HomeTeam?.Id ? home : null;
+
+        var names = (dto.RosterSpots ?? [])
+            .Where(r => r is not null && r.PlayerId > 0)
+            .GroupBy(r => r.PlayerId)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var r = g.First();
+                var first = r.FirstName?.Default ?? "";
+                return first.Length > 0 ? $"{first[0]}. {r.LastName?.Default}" : r.LastName?.Default ?? "";
+            });
+
+        var plays = (dto.Plays ?? [])
+            .Where(p => p is not null)
+            .Select(p =>
+            {
+                var d = p!.Details;
+                var type = ParsePlayType(p.TypeDescKey);
+                return new PlayEvent
+                {
+                    EventId = p.EventId ?? 0,
+                    SortOrder = p.SortOrder ?? 0,
+                    Type = type,
+                    Period = p.PeriodDescriptor?.Number ?? 0,
+                    PeriodType = ParsePeriodType(p.PeriodDescriptor?.PeriodType),
+                    TimeInPeriod = p.TimeInPeriod ?? "",
+                    SituationCode = p.SituationCode ?? "",
+                    Team = TeamOf(d?.EventOwnerTeamId),
+                    X = d?.XCoord,
+                    Y = d?.YCoord,
+                    HomeDefendingSide = p.HomeTeamDefendingSide,
+                    PrimaryPlayerId = type switch
+                    {
+                        PlayType.Goal => d?.ScoringPlayerId,
+                        PlayType.Hit => d?.HittingPlayerId,
+                        PlayType.Penalty => d?.CommittedByPlayerId ?? d?.PlayerId,
+                        PlayType.BlockedShot => d?.ShootingPlayerId,
+                        _ => d?.ShootingPlayerId ?? d?.PlayerId,
+                    },
+                    SecondaryPlayerId = type switch
+                    {
+                        PlayType.Goal => d?.Assist1PlayerId,
+                        PlayType.Hit => d?.HitteePlayerId,
+                        PlayType.Penalty => d?.DrawnByPlayerId,
+                        PlayType.BlockedShot => d?.BlockingPlayerId,
+                        _ => d?.GoalieInNetId,
+                    },
+                    TertiaryPlayerId = type == PlayType.Goal ? d?.Assist2PlayerId : null,
+                    ShotType = d?.ShotType,
+                    PenaltyDescription = d?.DescKey?.Replace('-', ' '),
+                    PenaltyMinutes = d?.Duration ?? 0,
+                    AwayScore = d?.AwayScore,
+                    HomeScore = d?.HomeScore,
+                };
+            })
+            .OrderBy(p => p.SortOrder)
+            .ToList();
+
+        return new PlayByPlay(dto.Id, dto.GameType ?? 0, away, home, plays, names);
+    }
+
+    public static PlayType ParsePlayType(string? key) => key switch
+    {
+        "goal" => PlayType.Goal,
+        "shot-on-goal" => PlayType.ShotOnGoal,
+        "missed-shot" => PlayType.MissedShot,
+        "blocked-shot" => PlayType.BlockedShot,
+        "hit" => PlayType.Hit,
+        "penalty" => PlayType.Penalty,
+        "faceoff" => PlayType.Faceoff,
+        "giveaway" => PlayType.Giveaway,
+        "takeaway" => PlayType.Takeaway,
+        "stoppage" => PlayType.Stoppage,
+        "period-start" => PlayType.PeriodStart,
+        "period-end" => PlayType.PeriodEnd,
+        "game-end" => PlayType.GameEnd,
+        _ => PlayType.Other,
+    };
+
     public static IReadOnlyList<PlayoffSeries> MapBracket(BracketDto? dto) =>
         (dto?.Series ?? [])
         .Where(s => s is not null)
