@@ -67,11 +67,26 @@
                 </Grid>
 
                 <DockPanel Margin="0,4,0,0">
-                    <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE8A7;"
-                            ToolTip="Open the NHL game page" AutomationProperties.Name="Open game page"
-                            Command="{Binding OpenGameCenterCommand}"
-                            Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window},
-                                                 Converter={StaticResource BoolToVisibility}}" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window},
+                                                     Converter={StaticResource BoolToVisibility}}">
+                        <Button Command="{Binding ToggleShieldCommand}" ToolTip="{Binding ShieldActionLabel}"
+                                AutomationProperties.Name="{Binding ShieldActionLabel}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                    <Setter Property="Content" Value="&#xED1A;" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsShielded}" Value="True">
+                                            <Setter Property="Content" Value="&#xE890;" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}" Content="&#xE8A7;" Margin="2,0,0,0"
+                                ToolTip="Open the NHL game page" AutomationProperties.Name="Open game page"
+                                Command="{Binding OpenGameCenterCommand}" />
+                    </StackPanel>
                     <TextBlock Text="{Binding StatusText}" FontSize="12.5" VerticalAlignment="Center" Style="{StaticResource GameStatusText}" />
                 </DockPanel>
 

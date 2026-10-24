@@ -6,10 +6,10 @@ namespace NHLOverlay.ViewModels;
 /// <summary>A selectable value with a display label (for chip lists bound to enum settings).</summary>
 public sealed record ChoiceOption<T>(T Value, string Label);
 
-/// <summary>A team in the settings team picker.</summary>
+/// <summary>A team in a settings team picker (favorites, always-hidden teams).</summary>
 public sealed class TeamChoiceViewModel(string abbrev, string fullName) : ObservableObject
 {
-    private bool _isFavorite;
+    private bool _isSelected;
     private ImageSource? _logo;
 
     public string Abbrev { get; } = abbrev;
@@ -18,7 +18,7 @@ public sealed class TeamChoiceViewModel(string abbrev, string fullName) : Observ
 
     public ImageSource? Logo { get => _logo; set => SetProperty(ref _logo, value); }
 
-    public bool IsFavorite { get => _isFavorite; set => SetProperty(ref _isFavorite, value); }
+    public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
 }
 
 /// <summary>Teams of one division, as shown in the picker.</summary>

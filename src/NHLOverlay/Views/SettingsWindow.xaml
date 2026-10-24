@@ -27,6 +27,30 @@
             <Setter Property="Margin" Value="0,0,0,2" />
         </Style>
         <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
+        <!-- One division of team chips (logo + abbreviation); used by every team picker. -->
+        <DataTemplate x:Key="TeamGroupTemplate">
+            <StackPanel>
+                <TextBlock Text="{Binding Name}" Style="{StaticResource FieldLabel}" Margin="0,8,0,6" />
+                <ItemsControl ItemsSource="{Binding Teams}" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ToggleButton Style="{StaticResource TeamChip}" IsChecked="{Binding IsSelected}"
+                                          ToolTip="{Binding FullName}" AutomationProperties.Name="{Binding FullName}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{Binding Logo}" Width="20" Height="20" Margin="0,0,6,0" />
+                                    <TextBlock Text="{Binding Abbrev}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </ToggleButton>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
         <Style TargetType="controls:HotkeyBox" BasedOn="{StaticResource ReadOnlyField}">
             <Setter Property="Width" Value="180" />
             <Setter Property="HorizontalAlignment" Value="Left" />
@@ -71,33 +95,7 @@
                         <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
                                    Text="Pick your favorite teams. Their games are highlighted, listed first and used for notifications." />
 
-                        <ItemsControl ItemsSource="{Binding TeamGroups}" Focusable="False">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" Style="{StaticResource FieldLabel}" Margin="0,8,0,6" />
-                                        <ItemsControl ItemsSource="{Binding Teams}" Focusable="False">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <ToggleButton Style="{StaticResource TeamChip}" IsChecked="{Binding IsFavorite}"
-                                                                  ToolTip="{Binding FullName}" AutomationProperties.Name="{Binding FullName}">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Image Source="{Binding Logo}" Width="20" Height="20" Margin="0,0,6,0" />
-                                                            <TextBlock Text="{Binding Abbrev}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                                        </StackPanel>
-                                                    </ToggleButton>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding TeamGroups}" ItemTemplate="{StaticResource TeamGroupTemplate}" Focusable="False" />
                         <Button Style="{StaticResource DarkButton}" Content="Clear favorites" HorizontalAlignment="Left"
                                 Margin="0,6,0,0" Command="{Binding ClearFavoritesCommand}" />
 
@@ -150,6 +148,41 @@
                             <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
                                        Text="Alerts for their goals and assists are set on the Notifications tab (Watched players' points)." />
                         </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Recap &amp; spoilers">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Recap}">
+                    <StackPanel>
+                        <TextBlock Text="Morning recap" Style="{StaticResource SectionHeader}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding RecapEnabled}"
+                                  Content="Show a &quot;last night&quot; recap in the morning" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                                   Text="Results of your teams, hat tricks, shutouts, comebacks, overtime games and watched players' points. Appears at the 08:00 rollover; dismiss it with its × button." />
+                        <StackPanel IsEnabled="{Binding RecapEnabled}">
+                            <TextBlock Text="Show it until (local time)" Style="{StaticResource FieldLabel}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="56" />
+                                </Grid.ColumnDefinitions>
+                                <Slider Style="{StaticResource DarkSlider}" Minimum="9" Maximum="23" IsSnapToTickEnabled="True" TickFrequency="1"
+                                        Value="{Binding ShowUntilHour}" AutomationProperties.Name="Show recap until hour" />
+                                <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center"
+                                           Text="{Binding ShowUntilHour, StringFormat={}{0:00}:00}" />
+                            </Grid>
+                            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowOnYesterday}" Margin="0,10,0,6"
+                                      Content="Also show it above yesterday's games" />
+                        </StackPanel>
+
+                        <TextBlock Text="Spoiler shield" Style="{StaticResource SectionHeader}" Margin="0,22,0,14" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShieldEnabled}"
+                                  Content="Hide scores of games I'll watch later" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                                   Text="Mark a single game by clicking its card and choosing &quot;Hide score&quot;. Hidden games show no score, goals or alerts until you reveal them. Games of the teams below are always hidden." />
+                        <ItemsControl ItemsSource="{Binding ShieldTeamGroups}" ItemTemplate="{StaticResource TeamGroupTemplate}"
+                                      Focusable="False" IsEnabled="{Binding ShieldEnabled}" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

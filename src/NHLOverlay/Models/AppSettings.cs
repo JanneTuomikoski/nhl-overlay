@@ -28,6 +28,10 @@ public sealed class AppSettings
 
     public CountryWatchSettings CountryWatch { get; set; } = new();
 
+    public SpoilerSettings Spoilers { get; set; } = new();
+
+    public RecapSettings Recap { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -41,6 +45,8 @@ public sealed class AppSettings
         Notifications = (Notifications ?? new()).Normalize();
         Gaming = (Gaming ?? new()).Normalize();
         CountryWatch = (CountryWatch ?? new()).Normalize();
+        Spoilers = (Spoilers ?? new()).Normalize();
+        Recap = (Recap ?? new()).Normalize();
         return this;
     }
 

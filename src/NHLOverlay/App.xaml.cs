@@ -83,12 +83,18 @@ public partial class App : Application
         _sounds = new SoundService();
         _speech = new SpeechService();
         _tray = new TrayIcon();
+        var appState = new AppStateService(_settings.SettingsDirectory, TimeProvider.System);
+        var spoilers = new SpoilerService(appState, _settings);
+        var recaps = new RecapService(_settings, spoilers, _boxscores, countryWatch, appState);
         _notifications = new NotificationService(
-            _state, _settings, _runtime, _toasts, _sounds, _speech, _tray.ShowNotification, Dispatcher, findPlayer: countryWatch.FindPlayer);
+            _state, _settings, _runtime, _toasts, _sounds, _speech, _tray.ShowNotification, Dispatcher, findPlayer: countryWatch.FindPlayer)
+        {
+            IsSuppressed = e => spoilers.IsShielded(e.Game),
+        };
 
         // Overlay
         var overlayViewModel = new OverlayViewModel(
-            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, _polling.SetViewedDate, Dispatcher);
+            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, spoilers, recaps, _polling.SetViewedDate, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings, _runtime);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);

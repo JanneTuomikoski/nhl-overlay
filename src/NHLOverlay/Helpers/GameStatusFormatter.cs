@@ -62,8 +62,12 @@ public static class GameStatusFormatter
         0 => "TODAY",
         -1 => "YESTERDAY",
         1 => "TOMORROW",
-        _ => $"{Weekday(date.DayOfWeek)} {date.ToString(MonthDayPattern(culture), culture)}",
+        _ => FormatShortDate(date, culture),
     };
+
+    /// <summary>"FRI 24.10" (English weekday, regional day/month order).</summary>
+    public static string FormatShortDate(DateOnly date, CultureInfo culture) =>
+        $"{Weekday(date.DayOfWeek)} {date.ToString(MonthDayPattern(culture), culture)}";
 
     private static string Weekday(DayOfWeek day) => CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedDayName(day).ToUpperInvariant();
 

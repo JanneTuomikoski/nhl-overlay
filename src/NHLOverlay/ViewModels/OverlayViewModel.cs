@@ -11,6 +11,23 @@ namespace NHLOverlay.ViewModels;
 /// <summary>One line of the watched-country panel: "A. Barkov  FLA  1+1".</summary>
 public sealed record CountryPanelLine(string Name, string Team, string Stat);
 
+/// <summary>The morning recap as shown above the games.</summary>
+public sealed record RecapCard(
+    string Title,
+    IReadOnlyList<string> Favorites,
+    IReadOnlyList<string> Highlights,
+    string CountryTitle,
+    IReadOnlyList<string> CountryLines,
+    string Footer,
+    bool CanDismiss)
+{
+    public bool HasFavorites => Favorites.Count > 0;
+
+    public bool HasHighlights => Highlights.Count > 0;
+
+    public bool HasCountryLines => CountryLines.Count > 0;
+}
+
 public enum ConnectionState
 {
     Connecting,
@@ -32,6 +49,8 @@ public sealed class OverlayViewModel : ObservableObject
     private readonly TeamDirectoryService _teams;
     private readonly RuntimeState _runtime;
     private readonly CountryWatchService _countryWatch;
+    private readonly SpoilerService _spoilers;
+    private readonly RecapService _recaps;
     private readonly Action<DateOnly?> _requestDate;
     private readonly DispatcherTimer _returnToToday;
     private readonly Dictionary<long, GameCardViewModel> _cards = [];
@@ -54,6 +73,8 @@ public sealed class OverlayViewModel : ObservableObject
     private string _countryPanelTitle = "";
     private string _countryPanelFooter = "";
     private IReadOnlyList<CountryPanelLine> _countryPanelLines = [];
+    private RecapCard? _recap;
+    private DateOnly _recapDate;
 
     public OverlayViewModel(
         GameStateService state,
@@ -63,6 +84,8 @@ public sealed class OverlayViewModel : ObservableObject
         RuntimeState runtime,
         ToastService toasts,
         CountryWatchService countryWatch,
+        SpoilerService spoilers,
+        RecapService recaps,
         Action<DateOnly?> requestDate,
         Dispatcher dispatcher)
     {
@@ -71,6 +94,14 @@ public sealed class OverlayViewModel : ObservableObject
         _teams = teams;
         _runtime = runtime;
         _countryWatch = countryWatch;
+        _spoilers = spoilers;
+        _recaps = recaps;
+        spoilers.Changed += (_, _) => Apply(_snapshot);
+        DismissRecapCommand = new RelayCommand(() =>
+        {
+            _recaps.Dismiss(_recapDate);
+            Apply(_snapshot);
+        });
         Toasts = toasts.Toasts;
         teams.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
         countryWatch.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
@@ -119,6 +150,20 @@ public sealed class OverlayViewModel : ObservableObject
     public ICommand TodayCommand { get; }
 
     public ICommand ToggleDisplayModeCommand { get; }
+
+    public ICommand DismissRecapCommand { get; }
+
+    /// <summary>Morning recap ("LAST NIGHT"), or null when not shown.</summary>
+    public RecapCard? Recap
+    {
+        get => _recap;
+        private set
+        {
+            if (SetProperty(ref _recap, value)) OnPropertyChanged(nameof(ShowRecap));
+        }
+    }
+
+    public bool ShowRecap => Recap is not null;
 
     public double BackgroundOpacity { get => _backgroundOpacity; private set => SetProperty(ref _backgroundOpacity, value); }
 
@@ -213,10 +258,12 @@ public sealed class OverlayViewModel : ObservableObject
         var favorites = settings.Teams.Favorites.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var watched = new Dictionary<long, IReadOnlyList<WatchedPlayer>>();
         IReadOnlyList<WatchedPlayer> Watched(HockeyGame g) =>
-            watched.TryGetValue(g.Id, out var players) ? players : watched[g.Id] = _countryWatch.PlayersFor(g);
+            watched.TryGetValue(g.Id, out var players) ? players
+            : watched[g.Id] = _spoilers.IsShielded(g) ? [] : _countryWatch.PlayersFor(g);
         var context = new CardContext(settings, favorites, _teams.Find, snapshot.HatTricks, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture)
         {
             WatchedPlayers = Watched,
+            IsShielded = _spoilers.IsShielded,
         };
 
         var viewed = ViewedDate();
@@ -233,6 +280,7 @@ public sealed class OverlayViewModel : ObservableObject
             : GameOrdering.Sort(GameOrdering.Filter(source, filter, favorites, g => context.HatTricksFor(g).Count > 0), favorites, settings.Teams.SortOrder);
         SyncCards(visible, context);
         UpdateCountryPanel(source ?? [], Watched, settings.CountryWatch);
+        UpdateRecap(snapshot, culture);
 
         Connection = (snapshot.HasData, snapshot.IsStale, snapshot.LastError) switch
         {
@@ -267,9 +315,38 @@ public sealed class OverlayViewModel : ObservableObject
         StatusToolTip = string.Join(Environment.NewLine, tip);
     }
 
+    private void UpdateRecap(ScoreboardSnapshot snapshot, CultureInfo culture)
+    {
+        var recap = _recaps.For(snapshot, _dayOffset, DateTimeOffset.UtcNow);
+        if (recap is null)
+        {
+            Recap = null;
+            return;
+        }
+
+        _recapDate = recap.Date;
+        var footer = $"{recap.FinishedGames} game{(recap.FinishedGames == 1 ? "" : "s")}"
+                     + (recap.HiddenGames > 0 ? $" · {recap.HiddenGames} hidden (watch later)" : "");
+        var card = new RecapCard(
+            $"LAST NIGHT · {GameStatusFormatter.FormatShortDate(recap.Date, culture)}",
+            recap.FavoriteResults,
+            recap.Highlights,
+            recap.CountryTitle,
+            // Above yesterday's games the watched-players panel already lists the same points.
+            _dayOffset == 0 ? recap.CountryLines : [],
+            footer,
+            CanDismiss: _dayOffset == 0);
+        // Rebuilt every refresh; only notify when the content actually changed.
+        if (Recap is null || Recap.Title != card.Title || Recap.Footer != card.Footer || Recap.CanDismiss != card.CanDismiss
+            || !Recap.Favorites.SequenceEqual(card.Favorites) || !Recap.Highlights.SequenceEqual(card.Highlights)
+            || !Recap.CountryLines.SequenceEqual(card.CountryLines))
+            Recap = card;
+    }
+
     /// <summary>Watched players with points (and goalies who played) across the shown day's games.</summary>
     private void UpdateCountryPanel(IReadOnlyList<HockeyGame> games, Func<HockeyGame, IReadOnlyList<WatchedPlayer>> watched, CountryWatchSettings settings)
     {
+        // Shielded games return no players (see Watched), so the panel never spoils them.
         var players = settings.Enabled ? games.SelectMany(watched).DistinctBy(p => (p.PlayerId, p.GameId)).ToList() : [];
         ShowCountryPanel = settings.ShowPanel && players.Count > 0;
         if (!ShowCountryPanel) return;
@@ -302,7 +379,11 @@ public sealed class OverlayViewModel : ObservableObject
             var game = ordered[i];
             if (!_cards.TryGetValue(game.Id, out var card))
             {
-                card = new GameCardViewModel(game.Id, _logos);
+                card = new GameCardViewModel(game.Id, _logos, (id, hide) =>
+                {
+                    if (hide) _spoilers.Shield(id);
+                    else _spoilers.Reveal(id);
+                });
                 _cards[game.Id] = card;
             }
 

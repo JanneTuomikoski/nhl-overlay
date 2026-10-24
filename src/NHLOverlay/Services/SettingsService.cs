@@ -125,6 +125,8 @@ public sealed class SettingsService
             Notifications = ReadSection<NotificationSettings>(root, "notifications", brokenSections),
             Gaming = ReadSection<GamingSettings>(root, "gaming", brokenSections),
             CountryWatch = ReadSection<CountryWatchSettings>(root, "countryWatch", brokenSections),
+            Spoilers = ReadSection<SpoilerSettings>(root, "spoilers", brokenSections),
+            Recap = ReadSection<RecapSettings>(root, "recap", brokenSections),
         };
         return settings.Normalize();
     }

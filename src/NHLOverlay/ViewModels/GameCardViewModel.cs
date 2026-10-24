@@ -24,13 +24,16 @@ public sealed record CardContext(
     /// <summary>Watched-country players per game; empty when country watch is off.</summary>
     public Func<HockeyGame, IReadOnlyList<WatchedPlayer>> WatchedPlayers { get; init; } = _ => [];
 
+    /// <summary>Spoiler shield: the game's score and details must stay hidden.</summary>
+    public Func<HockeyGame, bool> IsShielded { get; init; } = _ => false;
+
     public AppearanceSettings Appearance => Settings.Appearance;
 
-    /// <summary>Hat-Trick Watch players for a game, honoring the enable and scope settings.</summary>
+    /// <summary>Hat-Trick Watch players for a game, honoring the enable, scope and spoiler settings.</summary>
     public IReadOnlyList<PlayerGameGoals> HatTricksFor(HockeyGame game)
     {
         var settings = Settings.HatTrick;
-        if (!settings.Enabled || !HatTricks.TryGetValue(game.Id, out var players)) return [];
+        if (!settings.Enabled || IsShielded(game) || !HatTricks.TryGetValue(game.Id, out var players)) return [];
         if (settings.Scope == TeamScope.FavoritesOnly && !GameOrdering.IsFavorite(game, Favorites)) return [];
         // A two-goal "watch" only means something while the game can still produce a third goal;
         // completed hat tricks stay visible for the rest of the game day.
@@ -85,13 +88,18 @@ public sealed class GameCardViewModel : ObservableObject
     private string _hatTrickTextLong = "";
     private string _countryText = "";
     private string _countryTextLong = "";
+    private bool _isShielded;
 
-    public GameCardViewModel(long id, LogoService logos)
+    /// <param name="id">NHL game id.</param>
+    /// <param name="logos">Logo source.</param>
+    /// <param name="setShielded">Spoiler shield action: (gameId, hide) where hide=false reveals the score.</param>
+    public GameCardViewModel(long id, LogoService logos, Action<long, bool>? setShielded = null)
     {
         Id = id;
         _logos = logos;
         ToggleDetailsCommand = new RelayCommand(() => IsDetailsOpen = !IsDetailsOpen);
         OpenGameCenterCommand = new RelayCommand(OpenGameCenter, () => _gameCenterUrl is not null);
+        ToggleShieldCommand = new RelayCommand(() => setShielded?.Invoke(Id, !IsShielded), () => setShielded is not null);
     }
 
     public long Id { get; }
@@ -99,6 +107,21 @@ public sealed class GameCardViewModel : ObservableObject
     public ICommand ToggleDetailsCommand { get; }
 
     public ICommand OpenGameCenterCommand { get; }
+
+    /// <summary>Hides the score ("watch later") or reveals it.</summary>
+    public ICommand ToggleShieldCommand { get; }
+
+    /// <summary>Spoiler shield is hiding this game's score.</summary>
+    public bool IsShielded
+    {
+        get => _isShielded;
+        private set
+        {
+            if (SetProperty(ref _isShielded, value)) OnPropertyChanged(nameof(ShieldActionLabel));
+        }
+    }
+
+    public string ShieldActionLabel => IsShielded ? "Reveal score" : "Hide score (watch later)";
 
     public string AwayAbbrev { get => _awayAbbrev; private set => SetProperty(ref _awayAbbrev, value); }
 
@@ -227,17 +250,22 @@ public sealed class GameCardViewModel : ObservableObject
         HomeName = TeamName(game.Home, context);
         AwayShortName = ShortTeamName(game.Away, context);
         HomeShortName = ShortTeamName(game.Home, context);
-        Status = game.Status;
-        StatusText = GameStatusFormatter.FormatStatus(game, context.LocalZone, context.Now, culture, appearance.ShowGameClock);
+        IsShielded = context.IsShielded(game);
+        // A shielded game only reveals whether it is still going: no score, period, overtime or goals.
+        var revealDetails = !IsShielded || game.Status.IsUpcoming() || game.Status.IsInactive();
+        Status = revealDetails ? game.Status : game.Status.IsInProgress() ? GameStatus.Live : GameStatus.Final;
+        StatusText = revealDetails
+            ? GameStatusFormatter.FormatStatus(game, context.LocalZone, context.Now, culture, appearance.ShowGameClock)
+            : game.Status.IsInProgress() ? "LIVE · HIDDEN" : "HIDDEN";
 
         IsFavorite = GameOrdering.IsFavorite(game, context.Favorites);
         ShowFavoriteBar = IsFavorite && context.Settings.Teams.Highlight is FavoriteHighlight.Bar or FavoriteHighlight.BarAndTint;
         ShowFavoriteTint = IsFavorite && context.Settings.Teams.Highlight == FavoriteHighlight.BarAndTint;
         UpdateHatTrick(context.HatTricksFor(game), context.Settings.HatTrick);
-        UpdateCountry(context.Settings.CountryWatch.ShowOnCards ? context.WatchedPlayers(game) : []);
+        UpdateCountry(context.Settings.CountryWatch.ShowOnCards && !IsShielded ? context.WatchedPlayers(game) : []);
         _gameCenterUrl = game.GameCenterUrl;
 
-        HasScore = game.HasScore && !game.Status.IsUpcoming() && !game.Status.IsInactive();
+        HasScore = game.HasScore && !game.Status.IsUpcoming() && !game.Status.IsInactive() && !IsShielded;
         AwayScore = HasScore ? game.Away.Score!.Value.ToString(culture) : "";
         HomeScore = HasScore ? game.Home.Score!.Value.ToString(culture) : "";
         AwayLeading = HasScore && game.Away.Score > game.Home.Score;
@@ -249,7 +277,7 @@ public sealed class GameCardViewModel : ObservableObject
         AwayShots = HasShots ? game.Away.ShotsOnGoal!.Value.ToString(culture) : "";
         HomeShots = HasShots ? game.Home.ShotsOnGoal!.Value.ToString(culture) : "";
 
-        Goals = game.Goals.Select(g => ToGoalLine(g, game.MaxRegulationPeriods)).ToList();
+        Goals = IsShielded ? [] : game.Goals.Select(g => ToGoalLine(g, game.MaxRegulationPeriods)).ToList();
 
         ShowLogos = appearance.ShowTeamLogos;
         if (ShowLogos)
@@ -264,7 +292,7 @@ public sealed class GameCardViewModel : ObservableObject
             $"{AwayName} at {HomeName}",
             $"Start: {localStart.ToString("f", culture)}",
             HasShots ? $"Shots on goal: {game.Away.ShotsOnGoal} - {game.Home.ShotsOnGoal}" : null,
-            HasGoals ? "Click for goal details" : null,
+            IsShielded ? "Score hidden (watch later). Click, then Reveal score." : "Click for details",
         }.Where(line => line is not null));
     }
 

@@ -63,22 +63,16 @@
             <TextBlock Text="{Binding ShotsText}" FontSize="10.5" Margin="0,1,0,0" Foreground="{StaticResource TextSecondaryBrush}"
                        Visibility="{Binding ShowShots, Converter={StaticResource BoolToVisibility}}" />
 
-            <controls:GoalList FontSize="11" Margin="0,4,0,3">
-                <controls:GoalList.Style>
-                    <Style TargetType="controls:GoalList">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <MultiDataTrigger>
-                                <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding IsDetailsOpen}" Value="True" />
-                                    <Condition Binding="{Binding HasGoals}" Value="True" />
-                                </MultiDataTrigger.Conditions>
-                                <Setter Property="Visibility" Value="Visible" />
-                            </MultiDataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </controls:GoalList.Style>
-            </controls:GoalList>
+            <!-- Details (click the card): goals and actions. -->
+            <StackPanel Margin="0,4,0,3" Visibility="{Binding IsDetailsOpen, Converter={StaticResource BoolToVisibility}}">
+                <controls:GoalList FontSize="11" Visibility="{Binding HasGoals, Converter={StaticResource BoolToVisibility}}" />
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                    <Button Style="{StaticResource SmallActionButton}" Content="{Binding ShieldActionLabel}"
+                            Command="{Binding ToggleShieldCommand}" AutomationProperties.Name="{Binding ShieldActionLabel}" />
+                    <Button Style="{StaticResource SmallActionButton}" Content="NHL.com" Margin="6,0,0,0"
+                            Command="{Binding OpenGameCenterCommand}" AutomationProperties.Name="Open game page" />
+                </StackPanel>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </UserControl>

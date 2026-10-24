@@ -16,24 +16,11 @@ public sealed class TeamsSectionViewModel : ObservableObject, ISettingsSection
 
     public TeamsSectionViewModel(TeamDirectoryService teams, LogoService logos)
     {
-        TeamGroups = teams.Teams
-            .GroupBy(t => t.Division)
-            .OrderBy(g => Array.IndexOf(DivisionOrder, g.Key) is var i && i >= 0 ? i : 99)
-            .Select(g => new TeamGroup(
-                g.First().DivisionName,
-                g.OrderBy(t => t.FullName).Select(t => new TeamChoiceViewModel(t.Abbrev, t.FullName)).ToList()))
-            .ToList();
+        TeamGroups = BuildTeamGroups(teams, logos);
         AllTeams = TeamGroups.SelectMany(g => g.Teams).ToList();
-
-        foreach (var team in AllTeams)
-        {
-            var url = teams.Find(team.Abbrev)?.LogoUrl;
-            _ = LoadLogoAsync(team, url, logos);
-        }
-
         ClearFavoritesCommand = new RelayCommand(() =>
         {
-            foreach (var team in AllTeams) team.IsFavorite = false;
+            foreach (var team in AllTeams) team.IsSelected = false;
         });
     }
 
@@ -67,8 +54,7 @@ public sealed class TeamsSectionViewModel : ObservableObject, ISettingsSection
 
     public void Load(AppSettings settings)
     {
-        var favorites = settings.Teams.Favorites.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var team in AllTeams) team.IsFavorite = favorites.Contains(team.Abbrev);
+        SelectTeams(AllTeams, settings.Teams.Favorites);
         Filter = settings.Teams.Filter;
         SortOrder = settings.Teams.SortOrder;
         Highlight = settings.Teams.Highlight;
@@ -76,14 +62,40 @@ public sealed class TeamsSectionViewModel : ObservableObject, ISettingsSection
 
     public void Apply(AppSettings settings)
     {
-        // Keep favorites that are not in the NHL picker (e.g. Liiga teams managed elsewhere).
-        var nhl = AllTeams.Select(t => t.Abbrev).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        settings.Teams.Favorites = settings.Teams.Favorites.Where(f => !nhl.Contains(f))
-            .Concat(AllTeams.Where(t => t.IsFavorite).Select(t => t.Abbrev))
-            .ToList();
+        settings.Teams.Favorites = SelectedTeams(AllTeams, settings.Teams.Favorites);
         settings.Teams.Filter = Filter;
         settings.Teams.SortOrder = SortOrder;
         settings.Teams.Highlight = Highlight;
+    }
+
+    /// <summary>All NHL teams grouped by division (Atlantic, Metropolitan, Central, Pacific), with logos.</summary>
+    internal static IReadOnlyList<TeamGroup> BuildTeamGroups(TeamDirectoryService teams, LogoService logos)
+    {
+        var groups = teams.Teams
+            .GroupBy(t => t.Division)
+            .OrderBy(g => Array.IndexOf(DivisionOrder, g.Key) is var i && i >= 0 ? i : 99)
+            .Select(g => new TeamGroup(
+                g.First().DivisionName,
+                g.OrderBy(t => t.FullName).Select(t => new TeamChoiceViewModel(t.Abbrev, t.FullName)).ToList()))
+            .ToList();
+        foreach (var team in groups.SelectMany(g => g.Teams))
+            _ = LoadLogoAsync(team, teams.Find(team.Abbrev)?.LogoUrl, logos);
+        return groups;
+    }
+
+    internal static void SelectTeams(IEnumerable<TeamChoiceViewModel> teams, IEnumerable<string> selected)
+    {
+        var set = selected.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var team in teams) team.IsSelected = set.Contains(team.Abbrev);
+    }
+
+    /// <summary>Selected teams, keeping entries that are not in the picker (e.g. hand-edited or other leagues).</summary>
+    internal static List<string> SelectedTeams(IReadOnlyList<TeamChoiceViewModel> teams, IEnumerable<string> previous)
+    {
+        var offered = teams.Select(t => t.Abbrev).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return previous.Where(t => !offered.Contains(t))
+            .Concat(teams.Where(t => t.IsSelected).Select(t => t.Abbrev))
+            .ToList();
     }
 
     private static async Task LoadLogoAsync(TeamChoiceViewModel team, string? url, LogoService logos)
