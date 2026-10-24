@@ -76,6 +76,19 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <!-- Day arrows: interaction mode and the games view only. -->
+        <Style x:Key="DayArrowButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsInteractive}" Value="True" />
+                        <Condition Binding="{Binding IsGamesView}" Value="True" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Visibility" Value="Visible" />
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Border x:Name="Root" Width="300" CornerRadius="10" BorderThickness="1">
@@ -116,9 +129,10 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Style="{StaticResource HeaderIconButton}" Content="&#xE76B;" FontSize="9"
+                <Button Grid.Column="0" Style="{StaticResource DayArrowButton}" Content="&#xE76B;" FontSize="9"
                         ToolTip="Previous day" AutomationProperties.Name="Previous day" Command="{Binding PreviousDayCommand}" />
                 <Button Grid.Column="1" Style="{StaticResource IconButton}" FontFamily="{StaticResource UiFont}" FontSize="11"
                         FontWeight="Bold" Padding="2,0" Command="{Binding TodayCommand}" ToolTip="Back to today"
@@ -136,7 +150,7 @@
                         </TextBlock.Style>
                     </TextBlock>
                 </Button>
-                <Button Grid.Column="2" Style="{StaticResource HeaderIconButton}" Content="&#xE76C;" FontSize="9"
+                <Button Grid.Column="2" Style="{StaticResource DayArrowButton}" Content="&#xE76C;" FontSize="9"
                         ToolTip="Next day" AutomationProperties.Name="Next day" Command="{Binding NextDayCommand}" />
 
                 <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -173,7 +187,19 @@
                                Typography.NumeralAlignment="Tabular" />
                 </StackPanel>
 
-                <Button Grid.Column="5" Margin="6,0,0,0" Command="{Binding ToggleDisplayModeCommand}"
+                <Button Grid.Column="5" Margin="6,0,0,0" Command="{Binding ToggleStandingsCommand}" Content="&#xE8FD;"
+                        ToolTip="Standings, playoff race and next games" AutomationProperties.Name="Toggle standings">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource HeaderIconButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsStandingsView}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Grid.Column="6" Margin="2,0,0,0" Command="{Binding ToggleDisplayModeCommand}"
                         ToolTip="Switch between compact and expanded view" AutomationProperties.Name="Toggle expanded view">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource HeaderIconButton}">
@@ -186,7 +212,7 @@
                         </Style>
                     </Button.Style>
                 </Button>
-                <Button Grid.Column="6" Style="{StaticResource HeaderIconButton}" Content="&#xE713;" Margin="2,0,0,0"
+                <Button Grid.Column="7" Style="{StaticResource HeaderIconButton}" Content="&#xE713;" Margin="2,0,0,0"
                         ToolTip="Settings" AutomationProperties.Name="Settings" Click="Settings_Click" />
             </Grid>
 
@@ -211,6 +237,10 @@
                     <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
                 </ScrollViewer.Resources>
                 <StackPanel>
+                    <controls:StandingsView DataContext="{Binding Standings}"
+                                            Visibility="{Binding DataContext.IsStandingsView, RelativeSource={RelativeSource AncestorType=Window},
+                                                                 Converter={StaticResource BoolToVisibility}}" />
+                    <StackPanel Visibility="{Binding IsGamesView, Converter={StaticResource BoolToVisibility}}">
                     <!-- Morning recap ("LAST NIGHT"). -->
                     <ContentControl Content="{Binding Recap}" Focusable="False">
                         <ContentControl.ContentTemplate>
@@ -311,12 +341,13 @@
                             </Style>
                         </ItemsControl.Style>
                     </ItemsControl>
+
+                    <TextBlock Text="{Binding Message}" Margin="10,6,10,10" FontSize="12" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Visibility="{Binding HasMessage, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
-
-            <TextBlock Grid.Row="3" Text="{Binding Message}" Margin="10,6,10,10" FontSize="12" TextWrapping="Wrap"
-                       Foreground="{StaticResource TextSecondaryBrush}"
-                       Visibility="{Binding HasMessage, Converter={StaticResource BoolToVisibility}}" />
 
             <ItemsControl Grid.Row="4" ItemsSource="{Binding Toasts}" ItemTemplate="{StaticResource ToastTemplate}" Focusable="False"
                           Margin="0,0,0,6" Visibility="{Binding ToastsAtBottom, Converter={StaticResource BoolToVisibility}}" />

@@ -71,6 +71,34 @@ internal sealed class GameOutcomeDto
     public string? LastPeriodType { get; set; }
 }
 
+internal sealed class ClubScheduleDto
+{
+    public List<GameDto>? Games { get; set; }
+}
+
+internal sealed class BracketDto
+{
+    public List<SeriesDto>? Series { get; set; }
+}
+
+internal sealed class SeriesDto
+{
+    public string? SeriesTitle { get; set; }
+    public string? SeriesAbbrev { get; set; }
+    public int? PlayoffRound { get; set; }
+    public int? TopSeedWins { get; set; }
+    public int? BottomSeedWins { get; set; }
+    public int? WinningTeamId { get; set; }
+    public SeriesTeamDto? TopSeedTeam { get; set; }
+    public SeriesTeamDto? BottomSeedTeam { get; set; }
+}
+
+internal sealed class SeriesTeamDto
+{
+    public int? Id { get; set; }
+    public string? Abbrev { get; set; }
+}
+
 internal sealed class StandingsResponseDto
 {
     public List<StandingDto>? Standings { get; set; }

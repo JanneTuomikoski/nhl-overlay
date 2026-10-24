@@ -135,6 +135,22 @@ internal static class NhlMapper
         })
         .ToList();
 
+    public static IReadOnlyList<PlayoffSeries> MapBracket(BracketDto? dto) =>
+        (dto?.Series ?? [])
+        .Where(s => s is not null)
+        .Select(s => new PlayoffSeries(
+            s!.PlayoffRound ?? 0,
+            s.SeriesAbbrev ?? "",
+            s.SeriesTitle ?? "",
+            s.TopSeedTeam?.Abbrev,
+            s.TopSeedWins ?? 0,
+            s.BottomSeedTeam?.Abbrev,
+            s.BottomSeedWins ?? 0,
+            s.WinningTeamId is int winner && winner > 0
+                ? winner == s.TopSeedTeam?.Id ? s.TopSeedTeam?.Abbrev : winner == s.BottomSeedTeam?.Id ? s.BottomSeedTeam?.Abbrev : null
+                : null))
+        .ToList();
+
     public static IReadOnlyList<RosterPlayer> MapRoster(RosterDto? dto, string team) =>
         new[] { dto?.Forwards, dto?.Defensemen, dto?.Goalies }
             .Where(group => group is not null)

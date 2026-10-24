@@ -24,6 +24,14 @@ public interface INhlApiClient
     /// <summary>Goalie lines for one game.</summary>
     Task<GameBoxscore> GetBoxscoreAsync(long gameId, string awayAbbrev, string homeAbbrev, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    /// <summary>A team's full current-season schedule (past games with results, future games with start times).</summary>
+    Task<IReadOnlyList<HockeyGame>> GetTeamScheduleAsync(string teamAbbrev, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    /// <summary>Playoff series for the season ending in <paramref name="year"/>.</summary>
+    Task<IReadOnlyList<PlayoffSeries>> GetPlayoffBracketAsync(int year, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 /// <summary>Failure talking to the NHL API. <see cref="RetryAfter"/> is set when the server asked us to back off.</summary>
@@ -84,6 +92,18 @@ public sealed class NhlApiService : INhlApiClient, IDisposable
         var dto = await GetJsonAsync<BoxscoreDto>($"gamecenter/{gameId}/boxscore", cancellationToken).ConfigureAwait(false)
                   ?? throw new NhlApiException($"Empty boxscore for game {gameId}.");
         return NhlMapper.MapBoxscore(dto, awayAbbrev, homeAbbrev);
+    }
+
+    public async Task<IReadOnlyList<HockeyGame>> GetTeamScheduleAsync(string teamAbbrev, CancellationToken cancellationToken)
+    {
+        var dto = await GetJsonAsync<ClubScheduleDto>($"club-schedule-season/{Uri.EscapeDataString(teamAbbrev)}/now", cancellationToken).ConfigureAwait(false);
+        return NhlMapper.MapGames(dto?.Games);
+    }
+
+    public async Task<IReadOnlyList<PlayoffSeries>> GetPlayoffBracketAsync(int year, CancellationToken cancellationToken)
+    {
+        var dto = await GetJsonAsync<BracketDto>($"playoff-bracket/{year.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
+        return NhlMapper.MapBracket(dto);
     }
 
     internal async Task<T?> GetJsonAsync<T>(string path, CancellationToken cancellationToken)

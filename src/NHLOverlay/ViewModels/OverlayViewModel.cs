@@ -75,6 +75,7 @@ public sealed class OverlayViewModel : ObservableObject
     private IReadOnlyList<CountryPanelLine> _countryPanelLines = [];
     private RecapCard? _recap;
     private DateOnly _recapDate;
+    private bool _isStandingsView;
 
     public OverlayViewModel(
         GameStateService state,
@@ -86,9 +87,18 @@ public sealed class OverlayViewModel : ObservableObject
         CountryWatchService countryWatch,
         SpoilerService spoilers,
         RecapService recaps,
+        StandingsViewModel standings,
+        ScheduleService schedules,
         Action<DateOnly?> requestDate,
         Dispatcher dispatcher)
     {
+        Standings = standings;
+        schedules.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
+        ToggleStandingsCommand = new RelayCommand(() =>
+        {
+            IsStandingsView = !IsStandingsView;
+            Apply(_snapshot);
+        });
         _settings = settings;
         _logos = logos;
         _teams = teams;
@@ -152,6 +162,22 @@ public sealed class OverlayViewModel : ObservableObject
     public ICommand ToggleDisplayModeCommand { get; }
 
     public ICommand DismissRecapCommand { get; }
+
+    public ICommand ToggleStandingsCommand { get; }
+
+    public StandingsViewModel Standings { get; }
+
+    /// <summary>Shows standings, playoff race and next games instead of the game list.</summary>
+    public bool IsStandingsView
+    {
+        get => _isStandingsView;
+        private set
+        {
+            if (SetProperty(ref _isStandingsView, value)) OnPropertyChanged(nameof(IsGamesView));
+        }
+    }
+
+    public bool IsGamesView => !IsStandingsView;
 
     /// <summary>Morning recap ("LAST NIGHT"), or null when not shown.</summary>
     public RecapCard? Recap
@@ -267,7 +293,9 @@ public sealed class OverlayViewModel : ObservableObject
         };
 
         var viewed = ViewedDate();
-        DayLabel = viewed is { } date ? GameStatusFormatter.FormatDayLabel(date, snapshot.TodayNhlDate, culture) : "TODAY";
+        DayLabel = IsStandingsView ? "STANDINGS"
+            : viewed is { } date ? GameStatusFormatter.FormatDayLabel(date, snapshot.TodayNhlDate, culture) : "TODAY";
+        if (IsStandingsView) Standings.Update(settings, snapshot, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture);
 
         IReadOnlyList<HockeyGame>? source = _dayOffset == 0
             ? snapshot.HasData ? snapshot.Games : null

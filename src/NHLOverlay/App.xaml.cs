@@ -21,6 +21,7 @@ public partial class App : Application
     private TeamDirectoryService? _teams;
     private RosterService? _rosters;
     private BoxscoreService? _boxscores;
+    private ScheduleService? _schedules;
     private ScorePollingService? _polling;
     private GameStateService? _state;
     private RuntimeState? _runtime;
@@ -75,6 +76,8 @@ public partial class App : Application
         _rosters.Start(_state);
         _boxscores = new BoxscoreService(_api, TimeProvider.System);
         _boxscores.Start();
+        _schedules = new ScheduleService(_api, _settings.CacheDirectory, TimeProvider.System);
+        _schedules.Start();
         var countryWatch = new CountryWatchService(_state, _settings, _rosters, _boxscores);
 
         // Session state and notifications
@@ -93,8 +96,10 @@ public partial class App : Application
         };
 
         // Overlay
+        var standings = new StandingsViewModel(_teams, _schedules, _logos);
         var overlayViewModel = new OverlayViewModel(
-            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, spoilers, recaps, _polling.SetViewedDate, Dispatcher);
+            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, spoilers, recaps, standings, _schedules,
+            _polling.SetViewedDate, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings, _runtime);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);
@@ -231,6 +236,7 @@ public partial class App : Application
         _teams?.Dispose();
         _rosters?.Dispose();
         _boxscores?.Dispose();
+        _schedules?.Dispose();
         _api?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();
