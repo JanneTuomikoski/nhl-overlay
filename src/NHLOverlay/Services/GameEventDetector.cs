@@ -25,12 +25,19 @@ public sealed class GameEventDetector
 
     private readonly Dictionary<long, List<KnownGoal>> _knownGoals = [];
     private readonly HashSet<string> _emitted = [];
+    private Func<long, RosterPlayer?>? _findPlayer;
+    private IReadOnlySet<string>? _countries;
 
     private sealed record KnownGoal(string Team, int Away, int Home, int Period, int Seconds);
 
-    public IReadOnlyList<GameEvent> Detect(ScoreboardSnapshot snapshot)
+    /// <param name="snapshot">The latest scoreboard.</param>
+    /// <param name="findPlayer">Roster lookup for watched-country points (optional).</param>
+    /// <param name="countries">Watched countries, e.g. "FIN" (optional).</param>
+    public IReadOnlyList<GameEvent> Detect(ScoreboardSnapshot snapshot, Func<long, RosterPlayer?>? findPlayer = null, IReadOnlySet<string>? countries = null)
     {
         if (!snapshot.HasData) return [];
+        _findPlayer = findPlayer;
+        _countries = countries;
 
         var events = new List<GameEvent>();
         foreach (var game in snapshot.Games)
@@ -79,6 +86,7 @@ public sealed class GameEventDetector
             var key = $"goal:{game.Id}:{identity.Period}:{identity.Seconds}:{identity.Team}:{identity.Away}-{identity.Home}";
             if (_emitted.Add(key))
                 events.Add(GoalEvent(game, goal, goals, key));
+            DetectCountryPoints(game, goal, goals, key, events);
         }
 
         // A goal that vanished while the data is consistent (goal count matches the score) was overturned.
@@ -86,6 +94,19 @@ public sealed class GameEventDetector
         var shootoutGoal = game.Goals.Any(g => g.IsShootout) ? 1 : 0;
         if (goals.Count > 0 && goals.Count == scoreTotal - shootoutGoal)
             known.RemoveAll(k => !seen.Any(s => SameGoal(k, s)));
+    }
+
+    /// <summary>A new goal scored or assisted by a watched-country player.</summary>
+    private void DetectCountryPoints(HockeyGame game, GameGoal goal, IReadOnlyList<GameGoal> goals, string goalKey, List<GameEvent> events)
+    {
+        if (_findPlayer is null || _countries is not { Count: > 0 }) return;
+        var involved = new[] { (goal.PlayerId, IsGoal: true) }.Concat(goal.Assists.Select(a => (a.PlayerId, IsGoal: false)));
+        foreach (var (playerId, isGoal) in involved)
+        {
+            if (_findPlayer(playerId) is not { } player || !_countries.Contains(player.Country)) continue;
+            if (!_emitted.Add($"cp:{goalKey}:{playerId}")) continue;
+            events.Add(CountryPointEvent(game, goal, goals, player, isGoal, goalKey));
+        }
     }
 
     private static bool SameGoal(KnownGoal a, KnownGoal b) =>
@@ -142,6 +163,7 @@ public sealed class GameEventDetector
     {
         GameEventKind.GameStarted => 0,
         GameEventKind.Goal => 1,
+        GameEventKind.CountryPlayerPoint => 1,
         GameEventKind.HatTrickCompleted => 2,
         GameEventKind.HatTrickWatch => 3,
         GameEventKind.Overtime => 4,
@@ -192,7 +214,32 @@ public sealed class GameEventDetector
         var speech = $"Goal, {Name(team)}! {goal.ScorerName}"
                      + (scorerGoals >= 2 ? $", his {Ordinal(scorerGoals)} of the game. " : ". ")
                      + ScoreSentence(game, goal.AwayScore, goal.HomeScore);
-        return new GameEvent(GameEventKind.Goal, key, game, $"{team.Abbrev} GOAL  {Matchup(game, goal.AwayScore, goal.HomeScore)}", body, speech);
+        return new GameEvent(GameEventKind.Goal, key, game, $"{team.Abbrev} GOAL  {Matchup(game, goal.AwayScore, goal.HomeScore)}", body, speech)
+        {
+            GoalKey = key,
+        };
+    }
+
+    private static GameEvent CountryPointEvent(HockeyGame game, GameGoal goal, IReadOnlyList<GameGoal> allGoals, RosterPlayer player, bool isGoal, string goalKey)
+    {
+        // Points so far tonight, up to and including this goal.
+        var upTo = allGoals.TakeWhile(g => g != goal).Append(goal).ToList();
+        var goalsTonight = upTo.Count(g => g.PlayerId == player.Id);
+        var assistsTonight = upTo.Count(g => g.Assists.Any(a => a.PlayerId == player.Id));
+        var team = player.Team == game.Away.Abbrev ? game.Away : game.Home;
+        var adjective = HockeyCountries.Adjective(player.Country);
+        return new GameEvent(
+            GameEventKind.CountryPlayerPoint,
+            $"cp:{goalKey}:{player.Id}",
+            game,
+            $"{player.Country} {(isGoal ? "GOAL" : "ASSIST")}  {player.ShortName} · {Matchup(game, goal.AwayScore, goal.HomeScore)}",
+            $"{player.FullName} ({player.Team}) · {goalsTonight}+{assistsTonight} tonight",
+            isGoal
+                ? $"{adjective} goal! {player.FullName} scores for the {Name(team)}."
+                : $"{player.FullName} with an assist for the {Name(team)}.")
+        {
+            GoalKey = isGoal ? goalKey : null,
+        };
     }
 
     private static GameEvent StartedEvent(HockeyGame game) => new(

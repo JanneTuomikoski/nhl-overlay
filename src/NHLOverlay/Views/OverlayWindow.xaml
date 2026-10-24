@@ -210,18 +210,46 @@
                 <ScrollViewer.Resources>
                     <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
                 </ScrollViewer.Resources>
-                <ItemsControl ItemsSource="{Binding Games}" Focusable="False">
-                    <ItemsControl.Style>
-                        <Style TargetType="ItemsControl">
-                            <Setter Property="ItemTemplate" Value="{StaticResource CompactCardTemplate}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
-                                    <Setter Property="ItemTemplate" Value="{StaticResource ExpandedCardTemplate}" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ItemsControl.Style>
-                </ItemsControl>
+                <StackPanel>
+                    <!-- Watched-country summary ("FINNS TONIGHT"). -->
+                    <Border Margin="6,2,6,4" Padding="8,5,8,6" CornerRadius="6" Background="#1A8FC8FF"
+                            Visibility="{Binding ShowCountryPanel, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding CountryPanelTitle}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource CountryBrush}" />
+                            <ItemsControl ItemsSource="{Binding CountryPanelLines}" Grid.IsSharedSizeScope="True" Focusable="False" Margin="0,2,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:CountryPanelLine}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Team" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Stat" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" FontSize="11.5" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Team}" FontSize="11" Margin="8,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Stat}" FontSize="11.5" FontWeight="SemiBold" TextAlignment="Right"
+                                                       Typography.NumeralAlignment="Tabular" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding CountryPanelFooter}" FontSize="10.5" Margin="0,2,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Games}" Focusable="False">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Setter Property="ItemTemplate" Value="{StaticResource CompactCardTemplate}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                        <Setter Property="ItemTemplate" Value="{StaticResource ExpandedCardTemplate}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                    </ItemsControl>
+                </StackPanel>
             </ScrollViewer>
 
             <TextBlock Grid.Row="3" Text="{Binding Message}" Margin="10,6,10,10" FontSize="12" TextWrapping="Wrap"

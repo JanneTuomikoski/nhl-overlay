@@ -11,6 +11,7 @@ public enum GameEventKind
     CloseGame,
     GameFinal,
     WorthWatching,
+    CountryPlayerPoint,
 }
 
 /// <summary>
@@ -25,6 +26,12 @@ public sealed record GameEvent(
     string Body,
     string Speech)
 {
+    /// <summary>
+    /// For a goal and for a watched player's own goal: the goal's identity. Lets the notifier skip the second
+    /// alert when both describe the same goal.
+    /// </summary>
+    public string? GoalKey { get; init; }
+
     /// <summary>Teams involved, used for the favorites-only scope.</summary>
     public IReadOnlyList<string> Teams => [Game.Away.Abbrev, Game.Home.Abbrev];
 }

@@ -19,6 +19,8 @@ public partial class App : Application
     private NhlApiService? _api;
     private LogoService? _logos;
     private TeamDirectoryService? _teams;
+    private RosterService? _rosters;
+    private BoxscoreService? _boxscores;
     private ScorePollingService? _polling;
     private GameStateService? _state;
     private RuntimeState? _runtime;
@@ -69,6 +71,11 @@ public partial class App : Application
             TimeProvider.System);
         _teams = new TeamDirectoryService(_api, _settings.CacheDirectory, TimeProvider.System);
         _teams.Start(_state);
+        _rosters = new RosterService(_api, _settings.CacheDirectory, TimeProvider.System);
+        _rosters.Start(_state);
+        _boxscores = new BoxscoreService(_api, TimeProvider.System);
+        _boxscores.Start();
+        var countryWatch = new CountryWatchService(_state, _settings, _rosters, _boxscores);
 
         // Session state and notifications
         _runtime = new RuntimeState();
@@ -76,10 +83,12 @@ public partial class App : Application
         _sounds = new SoundService();
         _speech = new SpeechService();
         _tray = new TrayIcon();
-        _notifications = new NotificationService(_state, _settings, _runtime, _toasts, _sounds, _speech, _tray.ShowNotification, Dispatcher);
+        _notifications = new NotificationService(
+            _state, _settings, _runtime, _toasts, _sounds, _speech, _tray.ShowNotification, Dispatcher, findPlayer: countryWatch.FindPlayer);
 
         // Overlay
-        var overlayViewModel = new OverlayViewModel(_state, _settings, _logos, _teams, _runtime, _toasts, _polling.SetViewedDate, Dispatcher);
+        var overlayViewModel = new OverlayViewModel(
+            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, _polling.SetViewedDate, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings, _runtime);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);
@@ -214,6 +223,8 @@ public partial class App : Application
         Log.Info("Exiting.");
         _polling?.Dispose();
         _teams?.Dispose();
+        _rosters?.Dispose();
+        _boxscores?.Dispose();
         _api?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();

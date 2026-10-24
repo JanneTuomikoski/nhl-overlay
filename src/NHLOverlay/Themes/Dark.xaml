@@ -32,6 +32,8 @@
     <SolidColorBrush x:Key="StatusErrorBrush" Color="#F87171" />
     <SolidColorBrush x:Key="StatusStaleBrush" Color="#F5B841" />
     <SolidColorBrush x:Key="HatTrickBrush" Color="#FFC24D" />
+    <!-- Light blue, a nod to the Finnish flag. -->
+    <SolidColorBrush x:Key="CountryBrush" Color="#8FC8FF" />
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
@@ -496,6 +498,12 @@
                 <Setter Property="Background" Value="#26F5B841" />
             </DataTrigger>
         </Style.Triggers>
+    </Style>
+
+    <Style x:Key="CountryText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource CountryBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
     <Style x:Key="HatTrickText" TargetType="TextBlock">

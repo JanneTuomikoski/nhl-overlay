@@ -120,4 +120,57 @@ internal sealed class GoalDto
     public int? HomeScore { get; set; }
     public string? Strength { get; set; }
     public string? GoalModifier { get; set; }
+    public List<AssistDto>? Assists { get; set; }
+}
+
+internal sealed class AssistDto
+{
+    public long? PlayerId { get; set; }
+    public LocalizedStringDto? Name { get; set; }
+}
+
+internal sealed class RosterDto
+{
+    public List<RosterPlayerDto>? Forwards { get; set; }
+    public List<RosterPlayerDto>? Defensemen { get; set; }
+    public List<RosterPlayerDto>? Goalies { get; set; }
+}
+
+internal sealed class RosterPlayerDto
+{
+    public long Id { get; set; }
+    public LocalizedStringDto? FirstName { get; set; }
+    public LocalizedStringDto? LastName { get; set; }
+    public string? PositionCode { get; set; }
+    public string? BirthCountry { get; set; }
+    public int? SweaterNumber { get; set; }
+}
+
+internal sealed class BoxscoreDto
+{
+    public long Id { get; set; }
+    public string? GameState { get; set; }
+    public PlayerByGameStatsDto? PlayerByGameStats { get; set; }
+}
+
+internal sealed class PlayerByGameStatsDto
+{
+    public BoxscoreTeamDto? AwayTeam { get; set; }
+    public BoxscoreTeamDto? HomeTeam { get; set; }
+}
+
+internal sealed class BoxscoreTeamDto
+{
+    public List<BoxscoreGoalieDto>? Goalies { get; set; }
+}
+
+internal sealed class BoxscoreGoalieDto
+{
+    public long PlayerId { get; set; }
+    public LocalizedStringDto? Name { get; set; }
+    public int? Saves { get; set; }
+    public int? ShotsAgainst { get; set; }
+    public int? GoalsAgainst { get; set; }
+    public string? Toi { get; set; }
+    public string? Decision { get; set; }
 }

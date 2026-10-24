@@ -68,6 +68,7 @@ public sealed class NotificationSettings
         [GameEventKind.CloseGame] = new() { Enabled = false, Scope = TeamScope.FavoritesOnly },
         [GameEventKind.GameFinal] = new() { Scope = TeamScope.FavoritesOnly },
         [GameEventKind.WorthWatching] = new() { Scope = TeamScope.AllTeams },
+        [GameEventKind.CountryPlayerPoint] = new() { Scope = TeamScope.AllTeams },
     };
 
     /// <summary>The rule for <paramref name="kind"/> (always present after normalization).</summary>

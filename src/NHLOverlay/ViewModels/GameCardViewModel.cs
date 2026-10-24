@@ -21,6 +21,9 @@ public sealed record CardContext(
     TimeZoneInfo LocalZone,
     CultureInfo Culture)
 {
+    /// <summary>Watched-country players per game; empty when country watch is off.</summary>
+    public Func<HockeyGame, IReadOnlyList<WatchedPlayer>> WatchedPlayers { get; init; } = _ => [];
+
     public AppearanceSettings Appearance => Settings.Appearance;
 
     /// <summary>Hat-Trick Watch players for a game, honoring the enable and scope settings.</summary>
@@ -80,6 +83,8 @@ public sealed class GameCardViewModel : ObservableObject
     private bool _highlightHatTrick;
     private string _hatTrickText = "";
     private string _hatTrickTextLong = "";
+    private string _countryText = "";
+    private string _countryTextLong = "";
 
     public GameCardViewModel(long id, LogoService logos)
     {
@@ -141,6 +146,30 @@ public sealed class GameCardViewModel : ObservableObject
 
     /// <summary>Expanded text, e.g. "HAT-TRICK WATCH  Connor McDavid · 2 goals".</summary>
     public string HatTrickTextLong { get => _hatTrickTextLong; private set => SetProperty(ref _hatTrickTextLong, value); }
+
+    /// <summary>Compact: watched players with points tonight, e.g. "FIN  Barkov 1+1 · Saros 24/26".</summary>
+    public string CountryText
+    {
+        get => _countryText;
+        private set
+        {
+            if (SetProperty(ref _countryText, value)) OnPropertyChanged(nameof(HasCountryText));
+        }
+    }
+
+    public bool HasCountryText => CountryText.Length > 0;
+
+    /// <summary>Expanded: every watched player in the game, with stats where there are any.</summary>
+    public string CountryTextLong
+    {
+        get => _countryTextLong;
+        private set
+        {
+            if (SetProperty(ref _countryTextLong, value)) OnPropertyChanged(nameof(HasCountryTextLong));
+        }
+    }
+
+    public bool HasCountryTextLong => CountryTextLong.Length > 0;
 
     public string AwayScore { get => _awayScore; private set => SetProperty(ref _awayScore, value); }
 
@@ -205,6 +234,7 @@ public sealed class GameCardViewModel : ObservableObject
         ShowFavoriteBar = IsFavorite && context.Settings.Teams.Highlight is FavoriteHighlight.Bar or FavoriteHighlight.BarAndTint;
         ShowFavoriteTint = IsFavorite && context.Settings.Teams.Highlight == FavoriteHighlight.BarAndTint;
         UpdateHatTrick(context.HatTricksFor(game), context.Settings.HatTrick);
+        UpdateCountry(context.Settings.CountryWatch.ShowOnCards ? context.WatchedPlayers(game) : []);
         _gameCenterUrl = game.GameCenterUrl;
 
         HasScore = game.HasScore && !game.Status.IsUpcoming() && !game.Status.IsInactive();
@@ -259,6 +289,15 @@ public sealed class GameCardViewModel : ObservableObject
         static string Label(PlayerGameGoals p) => p.IsHatTrick ? "HAT TRICK!" : "HAT-TRICK WATCH";
         HatTrickText = string.Join(Environment.NewLine, players.Select(p => $"{Label(p)}  {p.ShortName} ({p.Goals})"));
         HatTrickTextLong = string.Join(Environment.NewLine, players.Select(p => $"{Label(p)}  {p.Name} · {p.Goals} goals"));
+    }
+
+    private void UpdateCountry(IReadOnlyList<WatchedPlayer> players)
+    {
+        static string Join(IEnumerable<WatchedPlayer> group, Func<WatchedPlayer, string> format) =>
+            string.Join("   ", group.GroupBy(p => p.Country).Select(c => $"{c.Key}  {string.Join(" · ", c.Select(format))}"));
+
+        CountryText = Join(players.Where(p => p.HasStat), p => $"{p.LastName} {p.Stat}");
+        CountryTextLong = Join(players, p => p.HasStat ? $"{p.ShortName} {p.Stat}" : p.ShortName);
     }
 
     /// <summary>Full name from the team directory ("Los Angeles Kings"), else what the scoreboard sent.</summary>

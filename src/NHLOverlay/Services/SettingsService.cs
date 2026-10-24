@@ -124,6 +124,7 @@ public sealed class SettingsService
             HatTrick = ReadSection<HatTrickSettings>(root, "hatTrick", brokenSections),
             Notifications = ReadSection<NotificationSettings>(root, "notifications", brokenSections),
             Gaming = ReadSection<GamingSettings>(root, "gaming", brokenSections),
+            CountryWatch = ReadSection<CountryWatchSettings>(root, "countryWatch", brokenSections),
         };
         return settings.Normalize();
     }

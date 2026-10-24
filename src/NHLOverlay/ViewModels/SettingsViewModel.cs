@@ -64,7 +64,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         HatTrick = new HatTrickSectionViewModel();
         Notifications = new NotificationsSectionViewModel(notifications, speech);
         Gaming = new GamingSectionViewModel();
-        _sections = [Teams, HatTrick, Notifications, Gaming];
+        Players = new PlayersSectionViewModel();
+        _sections = [Teams, HatTrick, Notifications, Gaming, Players];
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => CloseRequested?.Invoke(this, EventArgs.Empty));
@@ -96,6 +97,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public NotificationsSectionViewModel Notifications { get; }
 
     public GamingSectionViewModel Gaming { get; }
+
+    public PlayersSectionViewModel Players { get; }
 
     // General
     public IReadOnlyList<int> RefreshIntervals { get; } = GeneralSettings.AllowedRefreshIntervals;

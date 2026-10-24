@@ -16,6 +16,14 @@ public interface INhlApiClient
     /// <summary>Current standings for all teams (empty in the off-season).</summary>
     Task<IReadOnlyList<TeamStanding>> GetStandingsAsync(CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    /// <summary>A team's current roster with each player's birth country.</summary>
+    Task<IReadOnlyList<RosterPlayer>> GetRosterAsync(string teamAbbrev, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    /// <summary>Goalie lines for one game.</summary>
+    Task<GameBoxscore> GetBoxscoreAsync(long gameId, string awayAbbrev, string homeAbbrev, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 /// <summary>Failure talking to the NHL API. <see cref="RetryAfter"/> is set when the server asked us to back off.</summary>
@@ -63,6 +71,19 @@ public sealed class NhlApiService : INhlApiClient, IDisposable
     {
         var dto = await GetJsonAsync<StandingsResponseDto>("standings/now", cancellationToken).ConfigureAwait(false);
         return NhlMapper.MapStandings(dto?.Standings);
+    }
+
+    public async Task<IReadOnlyList<RosterPlayer>> GetRosterAsync(string teamAbbrev, CancellationToken cancellationToken)
+    {
+        var dto = await GetJsonAsync<RosterDto>($"roster/{Uri.EscapeDataString(teamAbbrev)}/current", cancellationToken).ConfigureAwait(false);
+        return NhlMapper.MapRoster(dto, teamAbbrev);
+    }
+
+    public async Task<GameBoxscore> GetBoxscoreAsync(long gameId, string awayAbbrev, string homeAbbrev, CancellationToken cancellationToken)
+    {
+        var dto = await GetJsonAsync<BoxscoreDto>($"gamecenter/{gameId}/boxscore", cancellationToken).ConfigureAwait(false)
+                  ?? throw new NhlApiException($"Empty boxscore for game {gameId}.");
+        return NhlMapper.MapBoxscore(dto, awayAbbrev, homeAbbrev);
     }
 
     internal async Task<T?> GetJsonAsync<T>(string path, CancellationToken cancellationToken)

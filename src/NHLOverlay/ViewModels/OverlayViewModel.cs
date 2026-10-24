@@ -8,6 +8,9 @@ using NHLOverlay.Services;
 
 namespace NHLOverlay.ViewModels;
 
+/// <summary>One line of the watched-country panel: "A. Barkov  FLA  1+1".</summary>
+public sealed record CountryPanelLine(string Name, string Team, string Stat);
+
 public enum ConnectionState
 {
     Connecting,
@@ -28,6 +31,7 @@ public sealed class OverlayViewModel : ObservableObject
     private readonly LogoService _logos;
     private readonly TeamDirectoryService _teams;
     private readonly RuntimeState _runtime;
+    private readonly CountryWatchService _countryWatch;
     private readonly Action<DateOnly?> _requestDate;
     private readonly DispatcherTimer _returnToToday;
     private readonly Dictionary<long, GameCardViewModel> _cards = [];
@@ -46,6 +50,10 @@ public sealed class OverlayViewModel : ObservableObject
     private string _statusToolTip = "";
     private string _dayLabel = "TODAY";
     private string? _message;
+    private bool _showCountryPanel;
+    private string _countryPanelTitle = "";
+    private string _countryPanelFooter = "";
+    private IReadOnlyList<CountryPanelLine> _countryPanelLines = [];
 
     public OverlayViewModel(
         GameStateService state,
@@ -54,6 +62,7 @@ public sealed class OverlayViewModel : ObservableObject
         TeamDirectoryService teams,
         RuntimeState runtime,
         ToastService toasts,
+        CountryWatchService countryWatch,
         Action<DateOnly?> requestDate,
         Dispatcher dispatcher)
     {
@@ -61,8 +70,10 @@ public sealed class OverlayViewModel : ObservableObject
         _logos = logos;
         _teams = teams;
         _runtime = runtime;
+        _countryWatch = countryWatch;
         Toasts = toasts.Toasts;
         teams.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
+        countryWatch.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
         runtime.Changed += (_, _) =>
         {
             ApplySettings();
@@ -144,6 +155,24 @@ public sealed class OverlayViewModel : ObservableObject
 
     public bool HasMessage => Message is not null;
 
+    /// <summary>Watched-country summary above the games ("FINNS TONIGHT").</summary>
+    public bool ShowCountryPanel { get => _showCountryPanel; private set => SetProperty(ref _showCountryPanel, value); }
+
+    public string CountryPanelTitle { get => _countryPanelTitle; private set => SetProperty(ref _countryPanelTitle, value); }
+
+    public string CountryPanelFooter { get => _countryPanelFooter; private set => SetProperty(ref _countryPanelFooter, value); }
+
+    public IReadOnlyList<CountryPanelLine> CountryPanelLines
+    {
+        get => _countryPanelLines;
+        private set
+        {
+            if (_countryPanelLines.SequenceEqual(value)) return;
+            _countryPanelLines = value;
+            OnPropertyChanged();
+        }
+    }
+
     private void SetDayOffset(int offset)
     {
         offset = Math.Clamp(offset, -MaxDaysBack, MaxDaysForward);
@@ -182,7 +211,13 @@ public sealed class OverlayViewModel : ObservableObject
         var culture = CultureInfo.CurrentCulture;
         var settings = _settings.Current;
         var favorites = settings.Teams.Favorites.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var context = new CardContext(settings, favorites, _teams.Find, snapshot.HatTricks, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture);
+        var watched = new Dictionary<long, IReadOnlyList<WatchedPlayer>>();
+        IReadOnlyList<WatchedPlayer> Watched(HockeyGame g) =>
+            watched.TryGetValue(g.Id, out var players) ? players : watched[g.Id] = _countryWatch.PlayersFor(g);
+        var context = new CardContext(settings, favorites, _teams.Find, snapshot.HatTricks, DateTimeOffset.UtcNow, TimeZoneInfo.Local, culture)
+        {
+            WatchedPlayers = Watched,
+        };
 
         var viewed = ViewedDate();
         DayLabel = viewed is { } date ? GameStatusFormatter.FormatDayLabel(date, snapshot.TodayNhlDate, culture) : "TODAY";
@@ -197,6 +232,7 @@ public sealed class OverlayViewModel : ObservableObject
             ? []
             : GameOrdering.Sort(GameOrdering.Filter(source, filter, favorites, g => context.HatTricksFor(g).Count > 0), favorites, settings.Teams.SortOrder);
         SyncCards(visible, context);
+        UpdateCountryPanel(source ?? [], Watched, settings.CountryWatch);
 
         Connection = (snapshot.HasData, snapshot.IsStale, snapshot.LastError) switch
         {
@@ -229,6 +265,26 @@ public sealed class OverlayViewModel : ObservableObject
         if (snapshot.NextRefreshUtc is { } nextRefresh) tip.Add($"Next refresh {Time(nextRefresh, "T")}");
         if (snapshot.IsStale && snapshot.LastError is { } error) tip.Add($"Showing cached scores. Last error: {error}");
         StatusToolTip = string.Join(Environment.NewLine, tip);
+    }
+
+    /// <summary>Watched players with points (and goalies who played) across the shown day's games.</summary>
+    private void UpdateCountryPanel(IReadOnlyList<HockeyGame> games, Func<HockeyGame, IReadOnlyList<WatchedPlayer>> watched, CountryWatchSettings settings)
+    {
+        var players = settings.Enabled ? games.SelectMany(watched).DistinctBy(p => (p.PlayerId, p.GameId)).ToList() : [];
+        ShowCountryPanel = settings.ShowPanel && players.Count > 0;
+        if (!ShowCountryPanel) return;
+
+        CountryPanelTitle = $"{HockeyCountries.PanelTitle(settings.Countries)} {(_dayOffset == 0 ? "TONIGHT" : "· " + DayLabel)}";
+        CountryPanelLines = players
+            .Where(p => p.HasStat)
+            .OrderBy(p => p.IsGoalie)
+            .ThenByDescending(p => p.Points)
+            .ThenByDescending(p => p.Goals)
+            .Select(p => new CountryPanelLine(p.ShortName, p.Team, p.Stat))
+            .ToList();
+        var gameCount = players.Select(p => p.GameId).Distinct().Count();
+        CountryPanelFooter = $"{players.Select(p => p.PlayerId).Distinct().Count()} playing in {gameCount} game{(gameCount == 1 ? "" : "s")}"
+                             + (CountryPanelLines.Count == 0 ? " · no points yet" : "");
     }
 
     private void SyncCards(IReadOnlyList<HockeyGame> ordered, CardContext context)

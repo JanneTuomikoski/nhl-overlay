@@ -1,5 +1,8 @@
 namespace NHLOverlay.Models;
 
+/// <summary>An assist on a goal: stable NHL player id and the displayed name ("L. Draisaitl").</summary>
+public sealed record GoalAssist(long PlayerId, string Name);
+
 /// <summary>A goal scored in a specific game.</summary>
 public sealed record GameGoal
 {
@@ -30,6 +33,9 @@ public sealed record GameGoal
     public string? Strength { get; init; }
 
     public bool IsEmptyNet { get; init; }
+
+    /// <summary>Assisting players in order (primary first).</summary>
+    public IReadOnlyList<GoalAssist> Assists { get; init; } = [];
 
     /// <summary>Shootout goals do not count toward player goal totals (or hat tricks).</summary>
     public bool IsShootout => PeriodType == PeriodType.Shootout;

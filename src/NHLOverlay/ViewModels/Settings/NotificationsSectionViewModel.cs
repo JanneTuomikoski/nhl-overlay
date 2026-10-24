@@ -88,6 +88,7 @@ public sealed class NotificationsSectionViewModel : ObservableObject, ISettingsS
             Row(GameEventKind.CloseGame, "Close game", "Within one goal with ten minutes or less left in the third."),
             Row(GameEventKind.GameFinal, "Final score", "The game ends."),
             Row(GameEventKind.WorthWatching, "Worth switching to", "The night's most exciting moment: late tie, comeback, hat-trick chance (at most one every 10 minutes)."),
+            Row(GameEventKind.CountryPlayerPoint, "Watched players' points", "A goal or assist by a player from a watched country (Players tab). Skipped when the goal alert already covers it."),
         ];
         Voices = [DefaultVoiceLabel, .. speech.Voices];
         SpeechAvailable = speech.IsAvailable && speech.Voices.Count > 0;

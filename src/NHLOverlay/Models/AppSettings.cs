@@ -26,6 +26,8 @@ public sealed class AppSettings
 
     public GamingSettings Gaming { get; set; } = new();
 
+    public CountryWatchSettings CountryWatch { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -38,6 +40,7 @@ public sealed class AppSettings
         HatTrick = (HatTrick ?? new()).Normalize();
         Notifications = (Notifications ?? new()).Normalize();
         Gaming = (Gaming ?? new()).Normalize();
+        CountryWatch = (CountryWatch ?? new()).Normalize();
         return this;
     }
 

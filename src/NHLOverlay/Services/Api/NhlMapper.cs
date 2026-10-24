@@ -135,6 +135,32 @@ internal static class NhlMapper
         })
         .ToList();
 
+    public static IReadOnlyList<RosterPlayer> MapRoster(RosterDto? dto, string team) =>
+        new[] { dto?.Forwards, dto?.Defensemen, dto?.Goalies }
+            .Where(group => group is not null)
+            .SelectMany(group => group!)
+            .Where(p => p is not null && p.Id > 0)
+            .Select(p => new RosterPlayer(
+                p.Id,
+                p.FirstName?.Default ?? "",
+                p.LastName?.Default ?? "",
+                p.PositionCode ?? "",
+                p.BirthCountry ?? "",
+                team))
+            .ToList();
+
+    public static GameBoxscore MapBoxscore(BoxscoreDto dto, string awayAbbrev, string homeAbbrev)
+    {
+        static IEnumerable<GoalieLine> Goalies(BoxscoreTeamDto? team, string abbrev) =>
+            (team?.Goalies ?? []).Where(g => g is not null && g.PlayerId > 0).Select(g => new GoalieLine(
+                g.PlayerId, g.Name?.Default ?? "", abbrev, g.Saves ?? 0, g.ShotsAgainst ?? 0, g.GoalsAgainst ?? 0, g.Toi ?? "", g.Decision));
+
+        return new GameBoxscore(
+            dto.Id,
+            Goalies(dto.PlayerByGameStats?.AwayTeam, awayAbbrev).Concat(Goalies(dto.PlayerByGameStats?.HomeTeam, homeAbbrev)).ToList(),
+            string.Equals(dto.GameState, "OFF", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static HockeyTeam MapTeam(TeamDto? dto) => new()
     {
         Id = dto?.Id ?? 0,
@@ -159,6 +185,10 @@ internal static class NhlMapper
         HomeScore = dto.HomeScore ?? 0,
         Strength = dto.Strength,
         IsEmptyNet = string.Equals(dto.GoalModifier, "empty-net", StringComparison.OrdinalIgnoreCase),
+        Assists = (dto.Assists ?? [])
+            .Where(a => a?.PlayerId is > 0)
+            .Select(a => new GoalAssist(a!.PlayerId!.Value, a.Name?.Default ?? ""))
+            .ToList(),
     };
 
     private static string FullName(GoalDto dto)

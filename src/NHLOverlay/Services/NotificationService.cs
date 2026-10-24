@@ -35,7 +35,8 @@ public sealed class NotificationService
         ISpeechOutput speech,
         Action<string, string> desktop,
         Dispatcher dispatcher,
-        Func<DateTimeOffset>? now = null)
+        Func<DateTimeOffset>? now = null,
+        Func<long, RosterPlayer?>? findPlayer = null)
     {
         _settings = settings;
         _runtime = runtime;
@@ -48,7 +49,9 @@ public sealed class NotificationService
         // Snapshots arrive sequentially from the polling loop, so the detector is only ever used by one thread.
         state.Changed += (_, snapshot) =>
         {
-            var events = _detector.Detect(snapshot);
+            var watch = _settings.Current.CountryWatch;
+            var countries = watch.Enabled ? watch.Countries.ToHashSet(StringComparer.OrdinalIgnoreCase) : null;
+            var events = _detector.Detect(snapshot, findPlayer, countries);
             if (events.Count > 0) dispatcher.InvokeAsync(() => Deliver(events));
         };
         runtime.Changed += (_, _) =>
@@ -70,6 +73,10 @@ public sealed class NotificationService
 
         var favorites = s.Teams.Favorites.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var allowed = events.Where(e => IsAllowed(e, s, favorites)).ToList();
+
+        // A watched player's own goal that is already announced as a goal needs no second alert.
+        var announcedGoals = allowed.Where(e => e.Kind == GameEventKind.Goal).Select(e => e.GoalKey).ToHashSet();
+        allowed.RemoveAll(e => e.Kind == GameEventKind.CountryPlayerPoint && e.GoalKey is not null && announcedGoals.Contains(e.GoalKey));
         if (allowed.Count == 0) return;
 
         if (_runtime.DoNotDisturb)
@@ -163,6 +170,7 @@ public sealed class NotificationService
             GameEventKind.Overtime => ("OVERTIME  EDM 3-3 TOR", "Oilers and Maple Leafs go to overtime", "Oilers and Maple Leafs go to overtime, tied 3 to 3."),
             GameEventKind.CloseGame => ("CLOSE GAME  EDM 3-2 TOR", "3RD 08:41 · one-goal game", "Close game. Oilers lead 3 to 2. About 8 minutes left."),
             GameEventKind.WorthWatching => ("WORTH WATCHING  EDM 3-3 TOR", "tied 3-3 · 3RD 04:12 · comeback from 2 down", "Worth watching: Oilers versus Maple Leafs. Tied 3-3, comeback from 2 down."),
+            GameEventKind.CountryPlayerPoint => ("FIN GOAL  K. Kapanen · EDM 3-2 TOR", "Kasperi Kapanen (EDM) · 1+1 tonight", "Finnish goal! Kasperi Kapanen scores for the Oilers."),
             _ => ("FINAL  EDM 4-2 TOR", "Oilers win 4-2", "Final: Oilers beat the Maple Leafs 4 to 2."),
         };
         return new GameEvent(kind, $"test:{kind}", game, title, body, speech);

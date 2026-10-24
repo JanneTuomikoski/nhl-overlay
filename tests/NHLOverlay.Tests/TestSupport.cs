@@ -65,6 +65,16 @@ internal sealed class FakeNhlApi : INhlApiClient
 
     public Task<IReadOnlyList<TeamStanding>> GetStandingsAsync(CancellationToken cancellationToken) =>
         StandingsFailure is not null ? Task.FromException<IReadOnlyList<TeamStanding>>(StandingsFailure) : Task.FromResult(Standings);
+
+    public Dictionary<string, IReadOnlyList<RosterPlayer>> Rosters { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<string> RosterRequests { get; } = [];
+
+    public Task<IReadOnlyList<RosterPlayer>> GetRosterAsync(string teamAbbrev, CancellationToken cancellationToken)
+    {
+        RosterRequests.Add(teamAbbrev);
+        return Task.FromResult(Rosters.TryGetValue(teamAbbrev, out var roster) ? roster : (IReadOnlyList<RosterPlayer>)[]);
+    }
 }
 
 internal static class TestGames
