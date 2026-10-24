@@ -160,6 +160,11 @@ public sealed class NhlApiService : INhlApiClient, IDisposable
         {
             throw new NhlApiException($"Network error contacting the NHL API: {ex.Message}", inner: ex);
         }
+        catch (IOException ex)
+        {
+            // A connection dropped while the body was being read (HttpIOException derives from IOException).
+            throw new NhlApiException($"Network error reading the NHL API response: {ex.Message}", inner: ex);
+        }
         catch (JsonException ex)
         {
             throw new NhlApiException($"Unexpected response format from /{path}: {ex.Message}", inner: ex);

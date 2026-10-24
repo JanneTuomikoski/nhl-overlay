@@ -6,14 +6,17 @@ namespace NHLOverlay.Services;
 
 /// <summary>
 /// Career milestones and point streaks from tonight's goal lists plus each player's career totals.
-/// A game's existing points are a silent baseline the first time it is seen (restart, day rollover); after
-/// that each increase in a player's points is checked once. Players whose stats are not loaded yet are
-/// reported in <see cref="Result.NeedStats"/> and checked again on a later update.
+/// A game's existing points are a silent baseline the first time it is seen (restart, day rollover) and
+/// until its goal list accounts for the score; after that each increase in a player's points is checked
+/// once. Players outside the scope are still tracked silently, so one who enters it later (a roster loads)
+/// doesn't replay earlier points. Players whose stats are not loaded yet are reported in
+/// <see cref="Result.NeedStats"/> and checked again on a later update.
 /// </summary>
 public sealed class PlayerWatchTracker
 {
     private readonly Dictionary<(long Game, long Player), (int Goals, int Assists)> _evaluated = [];
     private readonly HashSet<long> _seenGames = [];
+    private readonly Dictionary<long, int> _baselineSightings = [];
     private readonly HashSet<string> _emitted = [];
 
     public sealed record Result(IReadOnlyList<GameEvent> Events, IReadOnlyList<long> NeedStats);
@@ -28,15 +31,14 @@ public sealed class PlayerWatchTracker
         var needStats = new List<long>();
         foreach (var game in games.Where(g => g.Status.IsInProgress() || g.Status.IsFinal()))
         {
-            var firstSighting = _seenGames.Add(game.Id);
+            var baseline = _seenGames.Add(game.Id) || _baselineSightings.ContainsKey(game.Id);
             foreach (var (playerId, counts) in TonightCounts(game))
             {
-                if (!inScope(playerId)) continue;
                 var key = (game.Id, playerId);
                 var last = _evaluated.GetValueOrDefault(key);
-                if (firstSighting || counts == last || counts.Goals + counts.Assists < last.Goals + last.Assists)
+                if (baseline || !inScope(playerId) || counts == last || counts.Goals + counts.Assists < last.Goals + last.Assists)
                 {
-                    _evaluated[key] = counts; // baseline, unchanged, or a scoring correction
+                    _evaluated[key] = counts; // baseline, out of scope, unchanged, or a scoring correction
                     continue;
                 }
 
@@ -56,6 +58,8 @@ public sealed class PlayerWatchTracker
 
                 _evaluated[key] = counts;
             }
+
+            if (baseline && GameEventDetector.EndBaseline(_baselineSightings, game)) _baselineSightings.Remove(game.Id);
         }
 
         return new Result(events, needStats);

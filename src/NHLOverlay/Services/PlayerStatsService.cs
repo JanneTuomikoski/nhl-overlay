@@ -6,11 +6,11 @@ namespace NHLOverlay.Services;
 
 /// <summary>
 /// Players' career totals and point streaks, fetched on demand one player at a time and cached on disk for
-/// most of a day (career totals only change after games).
+/// the current hockey day (career totals only change after games).
 /// </summary>
 public sealed class PlayerStatsService : IDisposable
 {
-    internal static readonly TimeSpan MaxAge = TimeSpan.FromHours(20);
+    internal static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan RequestGap = TimeSpan.FromMilliseconds(300);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -20,7 +20,7 @@ public sealed class PlayerStatsService : IDisposable
     private readonly Lock _gate = new();
     private readonly Dictionary<long, PlayerCareer> _players = [];
     private readonly HashSet<long> _queued = [];
-    private readonly HashSet<long> _failed = [];
+    private readonly Dictionary<long, DateTimeOffset> _failed = [];
     private readonly HashSet<long> _notOnDisk = [];
     private readonly SemaphoreSlim _work = new(0);
     private CancellationTokenSource? _cts;
@@ -58,6 +58,12 @@ public sealed class PlayerStatsService : IDisposable
         return cached;
     }
 
+    /// <summary>The player's stats only when fetched during the current hockey day, so last night's games are counted.</summary>
+    public PlayerCareer? GetFresh(long playerId) => Get(playerId) is { } career && IsFresh(career, _time.GetUtcNow()) ? career : null;
+
+    private bool IsFresh(PlayerCareer career, DateTimeOffset now) =>
+        NhlCalendar.GetHockeyDay(career.FetchedUtc, _time.LocalTimeZone) == NhlCalendar.GetHockeyDay(now, _time.LocalTimeZone);
+
     public void Start()
     {
         if (_cts is not null) return;
@@ -66,7 +72,7 @@ public sealed class PlayerStatsService : IDisposable
         _ = Task.Run(() => RunAsync(token));
     }
 
-    /// <summary>Queues players whose stats are missing or older than <see cref="MaxAge"/>.</summary>
+    /// <summary>Queues players whose stats are missing or from an earlier hockey day.</summary>
     public void Request(IEnumerable<long> playerIds)
     {
         var now = _time.GetUtcNow();
@@ -76,7 +82,8 @@ public sealed class PlayerStatsService : IDisposable
             var career = Get(id);
             lock (_gate)
             {
-                if (_failed.Contains(id) || (career is not null && now - career.FetchedUtc < MaxAge)) continue;
+                if ((_failed.TryGetValue(id, out var failed) && now - failed < RetryAfterFailure)
+                    || (career is not null && IsFresh(career, now))) continue;
                 if (_queued.Add(id)) added++;
             }
         }
@@ -95,13 +102,24 @@ public sealed class PlayerStatsService : IDisposable
                 lock (_gate) id = _queued.FirstOrDefault();
                 if (id == 0) continue;
 
-                await FetchAsync(id, ct).ConfigureAwait(false);
-                lock (_gate) _queued.Remove(id);
+                try
+                {
+                    await FetchAsync(id, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (_gate) _queued.Remove(id);
+                }
+
                 await Task.Delay(RequestGap, ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Player stats worker error; continuing.", ex); // never let the loop die
             }
         }
     }
@@ -111,14 +129,19 @@ public sealed class PlayerStatsService : IDisposable
         try
         {
             var career = await _api.GetPlayerCareerAsync(playerId, ct).ConfigureAwait(false) with { FetchedUtc = _time.GetUtcNow() };
-            lock (_gate) _players[playerId] = career;
+            lock (_gate)
+            {
+                _players[playerId] = career;
+                _failed.Remove(playerId);
+            }
+
             Save(career);
             Changed?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex) when (ex is NhlApiException or NotSupportedException)
         {
             Log.Warn($"Stats for player {playerId} unavailable: {ex.Message}");
-            lock (_gate) _failed.Add(playerId); // don't retry this session
+            lock (_gate) _failed[playerId] = _time.GetUtcNow(); // retried after RetryAfterFailure
         }
     }
 

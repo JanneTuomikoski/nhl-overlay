@@ -68,12 +68,22 @@ public sealed class BoxscoreService : IDisposable
                 lock (_gate) game = _queued.Values.FirstOrDefault();
                 if (game is null) continue;
 
-                await FetchAsync(game, ct).ConfigureAwait(false);
-                lock (_gate) _queued.Remove(game.Id);
+                try
+                {
+                    await FetchAsync(game, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (_gate) _queued.Remove(game.Id);
+                }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Boxscore worker error; continuing.", ex); // never let the loop die
             }
         }
     }

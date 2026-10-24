@@ -97,6 +97,26 @@ public class GameEventDetectorTests
     }
 
     [Fact]
+    public void Goals_that_reach_the_feed_after_the_first_snapshot_are_still_baseline()
+    {
+        var score = new HockeyTeam { Abbrev = "EDM", Name = "Oilers", Score = 2 };
+        Detect(Game(GameStatus.Live) with { Away = score }); // restart: score 2-0, goal list not loaded yet
+        Assert.Empty(Detect(Game(GameStatus.Live, Goal(97, "EDM", 1, 0), Goal(29, "EDM", 2, 0, 1, "09:00"))));
+
+        var events = Detect(Game(GameStatus.Live, Goal(97, "EDM", 1, 0), Goal(29, "EDM", 2, 0, 1, "09:00"), Goal(97, "EDM", 3, 0, 2)));
+        Assert.Single(events, e => e.Kind == GameEventKind.Goal);
+    }
+
+    [Fact]
+    public void A_goal_list_that_never_matches_the_score_ends_the_baseline_eventually()
+    {
+        var inconsistent = Game(GameStatus.Live) with { Away = new HockeyTeam { Abbrev = "EDM", Name = "Oilers", Score = 1 } };
+        for (var i = 0; i < GameEventDetector.MaxBaselineSightings; i++) Detect(inconsistent);
+
+        Assert.Single(Detect(inconsistent with { Goals = [Goal(97, "EDM", 1, 0)] }), e => e.Kind == GameEventKind.Goal);
+    }
+
+    [Fact]
     public void Announces_start_overtime_and_final_once_each()
     {
         var scheduled = Game(GameStatus.Scheduled) with { Away = new HockeyTeam { Abbrev = "EDM", Name = "Oilers" }, Home = new HockeyTeam { Abbrev = "TOR", Name = "Maple Leafs" } };

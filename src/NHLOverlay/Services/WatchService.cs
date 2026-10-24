@@ -76,7 +76,7 @@ public sealed class WatchService
                 var scope = games.SelectMany(ScopePlayers).Select(p => p.Id).ToHashSet();
                 _stats.Request(scope); // prefetch: favorite teams' and watched-country skaters playing today
                 Func<long, bool> inScope = settings.Scope == PlayerWatchScope.AllPlayers ? _ => true : scope.Contains;
-                var result = _players.Update(games, inScope, _stats.Get, settings);
+                var result = _players.Update(games, inScope, _stats.GetFresh, settings);
                 events.AddRange(result.Events);
                 _stats.Request(result.NeedStats);
             }

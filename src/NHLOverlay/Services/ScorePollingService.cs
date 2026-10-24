@@ -220,6 +220,10 @@ public sealed class ScorePollingService : IDisposable
             {
                 Log.Warn($"Liiga {date:yyyy-MM-dd} failed: {ex.Message}");
             }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Log.Error($"Unexpected error reading Liiga {date:yyyy-MM-dd}.", ex);
+            }
         }
     }
 

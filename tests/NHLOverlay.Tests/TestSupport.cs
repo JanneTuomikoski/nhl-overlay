@@ -40,7 +40,11 @@ internal sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider
 {
     public DateTimeOffset Now { get; set; } = now;
 
+    public TimeZoneInfo Zone { get; set; } = TimeZoneInfo.Local;
+
     public override DateTimeOffset GetUtcNow() => Now;
+
+    public override TimeZoneInfo LocalTimeZone => Zone;
 }
 
 /// <summary>In-memory NHL API: per-date game lists or failures, with a request log.</summary>
@@ -79,6 +83,18 @@ internal sealed class FakeNhlApi : INhlApiClient
     {
         RosterRequests.Add(teamAbbrev);
         return Task.FromResult(Rosters.TryGetValue(teamAbbrev, out var roster) ? roster : (IReadOnlyList<RosterPlayer>)[]);
+    }
+
+    public Dictionary<long, PlayerCareer> Careers { get; } = [];
+
+    public List<long> CareerRequests { get; } = [];
+
+    public Task<PlayerCareer> GetPlayerCareerAsync(long playerId, CancellationToken cancellationToken)
+    {
+        CareerRequests.Add(playerId);
+        return Careers.TryGetValue(playerId, out var career)
+            ? Task.FromResult(career)
+            : Task.FromException<PlayerCareer>(new NhlApiException($"No player {playerId}."));
     }
 }
 

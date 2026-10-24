@@ -86,19 +86,24 @@ public sealed class TeamDirectoryService : IDisposable
     {
         while (!ct.IsCancellationRequested)
         {
-            var age = _time.GetUtcNow() - (UpdatedUtc ?? DateTimeOffset.MinValue);
-            if (age >= TimeSpan.FromHours(1))
-                await RefreshAsync(ct).ConfigureAwait(false);
-
             try
             {
+                var age = _time.GetUtcNow() - (UpdatedUtc ?? DateTimeOffset.MinValue);
+                if (age >= TimeSpan.FromHours(1))
+                    await RefreshAsync(ct).ConfigureAwait(false);
+
                 await _wake.WaitAsync(RefreshInterval, ct).ConfigureAwait(false);
                 // A wake-up means "refresh now" regardless of age.
                 await RefreshAsync(ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Standings worker error; continuing.", ex); // never let the loop die
+                await Task.Delay(TimeSpan.FromMinutes(1), ct).ConfigureAwait(false);
             }
         }
     }

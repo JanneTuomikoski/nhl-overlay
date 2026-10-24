@@ -106,6 +106,11 @@ public sealed class FocusGameService : IDisposable
                     LastError = ex.Message;
                     Log.Warn($"Play-by-play for game {id} failed: {ex.Message}");
                 }
+                catch (Exception ex)
+                {
+                    LastError = ex.Message;
+                    Log.Error($"Play-by-play worker error for game {id}; continuing.", ex); // never let the loop die
+                }
             }
 
             try

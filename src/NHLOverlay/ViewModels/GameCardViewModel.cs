@@ -320,8 +320,9 @@ public sealed class GameCardViewModel : ObservableObject
         ShowLogos = appearance.ShowTeamLogos;
         if (ShowLogos)
         {
-            if (game.Away.LogoUrl != _awayLogoUrl) _ = LoadLogoAsync(_awayLogoUrl = game.Away.LogoUrl, away: true);
-            if (game.Home.LogoUrl != _homeLogoUrl) _ = LoadLogoAsync(_homeLogoUrl = game.Home.LogoUrl, away: false);
+            // A missing logo is asked for again; the service retries failed downloads after a while.
+            if (game.Away.LogoUrl != _awayLogoUrl || AwayLogo is null) _ = LoadLogoAsync(_awayLogoUrl = game.Away.LogoUrl, away: true);
+            if (game.Home.LogoUrl != _homeLogoUrl || HomeLogo is null) _ = LoadLogoAsync(_homeLogoUrl = game.Home.LogoUrl, away: false);
         }
 
         var localStart = TimeZoneInfo.ConvertTime(game.StartTimeUtc, context.LocalZone);

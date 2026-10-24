@@ -237,8 +237,8 @@ public sealed class FocusViewModel : ObservableObject, IDisposable
 
         var awayUrl = _teams.Find(game.Away.Abbrev)?.LogoUrl ?? game.Away.LogoUrl;
         var homeUrl = _teams.Find(game.Home.Abbrev)?.LogoUrl ?? game.Home.LogoUrl;
-        if (awayUrl != _awayLogoUrl) _ = LoadLogoAsync(_awayLogoUrl = awayUrl, logo => AwayLogo = logo);
-        if (homeUrl != _homeLogoUrl) _ = LoadLogoAsync(_homeLogoUrl = homeUrl, logo => HomeLogo = logo);
+        if (awayUrl != _awayLogoUrl || AwayLogo is null) _ = LoadLogoAsync(_awayLogoUrl = awayUrl, logo => AwayLogo = logo);
+        if (homeUrl != _homeLogoUrl || HomeLogo is null) _ = LoadLogoAsync(_homeLogoUrl = homeUrl, logo => HomeLogo = logo);
     }
 
     private void UpdateStrength(PlayByPlay pbp, HockeyGame? game)

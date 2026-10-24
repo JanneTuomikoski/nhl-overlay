@@ -130,6 +130,36 @@ public sealed class CountryWatchTests : IDisposable
     }
 
     [Fact]
+    public void Detector_announces_a_live_goal_point_once_the_roster_arrives()
+    {
+        var detector = new GameEventDetector();
+        var rosterLoaded = false;
+        RosterPlayer? Find(long id) => rosterLoaded ? new[] { Barkov, Reinhart }.FirstOrDefault(p => p.Id == id) : null;
+        IReadOnlyList<GameEvent> Detect(HockeyGame g) => detector.Detect(new ScoreboardSnapshot { HasData = true, Games = [g] }, Find, Finland);
+
+        Detect(Game());
+        Assert.DoesNotContain(Detect(Game(Goal(1, "FLA", 1, 0))), e => e.Kind == GameEventKind.CountryPlayerPoint);
+
+        rosterLoaded = true;
+        Assert.Single(Detect(Game(Goal(1, "FLA", 1, 0))), e => e.Kind == GameEventKind.CountryPlayerPoint);
+        Assert.DoesNotContain(Detect(Game(Goal(1, "FLA", 1, 0))), e => e.Kind == GameEventKind.CountryPlayerPoint);
+    }
+
+    [Fact]
+    public void Detector_never_replays_baseline_goals_when_the_roster_arrives()
+    {
+        var detector = new GameEventDetector();
+        var rosterLoaded = false;
+        RosterPlayer? Find(long id) => rosterLoaded ? Barkov.Id == id ? Barkov : null : null;
+        IReadOnlyList<GameEvent> Detect(HockeyGame g) => detector.Detect(new ScoreboardSnapshot { HasData = true, Games = [g] }, Find, Finland);
+
+        Detect(Game(Goal(1, "FLA", 1, 0))); // restart after Barkov scored
+        rosterLoaded = true;
+
+        Assert.DoesNotContain(Detect(Game(Goal(1, "FLA", 1, 0))), e => e.Kind == GameEventKind.CountryPlayerPoint);
+    }
+
+    [Fact]
     public void Notifier_skips_the_country_alert_when_the_goal_alert_covers_the_same_goal()
     {
         var settings = new SettingsService(_directory, isPortable: false);

@@ -55,6 +55,10 @@ public sealed class LiigaApiService : ILiigaClient, IDisposable
         {
             throw new NhlApiException($"Network error contacting the Liiga API: {ex.Message}", inner: ex);
         }
+        catch (IOException ex)
+        {
+            throw new NhlApiException($"Network error reading the Liiga API response: {ex.Message}", inner: ex);
+        }
         catch (JsonException ex)
         {
             throw new NhlApiException($"Unexpected response format from Liiga /{path}: {ex.Message}", inner: ex);

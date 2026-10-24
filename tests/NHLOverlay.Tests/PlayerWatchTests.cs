@@ -155,6 +155,71 @@ public class PlayerWatchTests
     }
 
     [Fact]
+    public void A_player_entering_the_scope_later_does_not_replay_earlier_points()
+    {
+        var tracker = new PlayerWatchTracker();
+        var careers = new Dictionary<long, PlayerCareer> { [97] = Career(97, 499, 600) };
+        tracker.Update([Game(GameStatus.Live)], _ => false, careers.GetValueOrDefault, new PlayerWatchSettings());
+        tracker.Update([Game(GameStatus.Live, Goal(97, 1, 0))], _ => false, careers.GetValueOrDefault, new PlayerWatchSettings());
+
+        // The roster loads and the player is now watched; the goal he already scored is not news.
+        Assert.Empty(tracker.Update([Game(GameStatus.Live, Goal(97, 1, 0))], _ => true, careers.GetValueOrDefault, new PlayerWatchSettings()).Events);
+    }
+
+    [Fact]
+    public void Points_that_reach_the_feed_after_the_first_snapshot_are_still_baseline()
+    {
+        var tracker = new PlayerWatchTracker();
+        var careers = new Dictionary<long, PlayerCareer> { [97] = Career(97, 499, 600) };
+        var partial = Game(GameStatus.Live) with { Away = new HockeyTeam { Abbrev = "EDM", Name = "Oilers", Score = 1 } };
+        tracker.Update([partial], _ => true, careers.GetValueOrDefault, new PlayerWatchSettings());
+
+        Assert.Empty(tracker.Update([Game(GameStatus.Live, Goal(97, 1, 0))], _ => true, careers.GetValueOrDefault, new PlayerWatchSettings()).Events);
+    }
+
+    [Fact]
+    public async Task Stats_from_an_earlier_hockey_day_are_stale_and_failures_are_retried()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "NHLOverlayTests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var api = new FakeNhlApi();
+            // 23:00 in Helsinki, during last night's games.
+            var time = new ManualTimeProvider(new DateTimeOffset(2026, 10, 24, 20, 0, 0, TimeSpan.Zero)) { Zone = Zones.Helsinki };
+            using var stats = new PlayerStatsService(api, directory, time);
+            api.Careers[97] = Career(97, 499, 600);
+            await stats.FetchAsync(97, CancellationToken.None);
+            Assert.NotNull(stats.GetFresh(97));
+
+            time.Now = time.Now.AddHours(13); // 12:00 the next day: a new hockey day
+            Assert.Null(stats.GetFresh(97));
+            Assert.NotNull(stats.Get(97));
+
+            stats.Start();
+            await stats.FetchAsync(29, CancellationToken.None); // unknown player: fails
+            stats.Request([29]);
+            await Task.Delay(100);
+            Assert.Equal(1, api.CareerRequests.Count(id => id == 29));
+
+            time.Now += PlayerStatsService.RetryAfterFailure;
+            api.Careers[29] = Career(29, 300, 898);
+            stats.Request([29]);
+            for (var i = 0; i < 50 && stats.GetFresh(29) is null; i++) await Task.Delay(20);
+            Assert.NotNull(stats.GetFresh(29));
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
+        }
+    }
+
+    [Fact]
     public void Shows_players_close_to_a_milestone()
     {
         var players = new[] { new RosterPlayer(97, "Connor", "McDavid", "C", "CAN", "EDM"), new RosterPlayer(29, "Leon", "Draisaitl", "C", "DEU", "EDM") };

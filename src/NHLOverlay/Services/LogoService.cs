@@ -15,11 +15,12 @@ namespace NHLOverlay.Services;
 public sealed class LogoService : IDisposable
 {
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(30);
+    internal static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(5);
 
     private readonly HttpClient _http;
     private readonly string _cacheDirectory;
     private readonly Func<string, ImageSource?> _convert;
-    private readonly Dictionary<string, Task<ImageSource?>> _images = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (Task<ImageSource?> Task, DateTime StartedUtc)> _images = new(StringComparer.OrdinalIgnoreCase);
 
     public LogoService(string cacheDirectory, HttpClient? httpClient = null, Func<string, ImageSource?>? convert = null)
     {
@@ -28,17 +29,21 @@ public sealed class LogoService : IDisposable
         _convert = convert ?? Convert;
     }
 
-    /// <summary>Must be called on the UI thread; concurrent requests for the same logo share one task.</summary>
+    /// <summary>
+    /// Must be called on the UI thread; concurrent requests for the same logo share one task. A logo that
+    /// failed to load is tried again once <see cref="RetryAfterFailure"/> has passed.
+    /// </summary>
     public Task<ImageSource?> GetLogoAsync(string? logoUrl)
     {
         if (string.IsNullOrWhiteSpace(logoUrl)) return Task.FromResult<ImageSource?>(null);
-        if (!_images.TryGetValue(logoUrl, out var task))
+        if (!_images.TryGetValue(logoUrl, out var entry)
+            || (entry.Task is { IsCompleted: true, Result: null } && DateTime.UtcNow - entry.StartedUtc >= RetryAfterFailure))
         {
-            task = LoadAsync(logoUrl);
-            _images[logoUrl] = task;
+            entry = (LoadAsync(logoUrl), DateTime.UtcNow);
+            _images[logoUrl] = entry;
         }
 
-        return task;
+        return entry.Task;
     }
 
     private async Task<ImageSource?> LoadAsync(string logoUrl)

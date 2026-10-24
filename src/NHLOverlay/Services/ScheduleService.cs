@@ -109,18 +109,34 @@ public sealed class ScheduleService : IDisposable
 
                 if (team is not null)
                 {
-                    await FetchScheduleAsync(team, ct).ConfigureAwait(false);
-                    lock (_gate) _queuedTeams.Remove(team);
+                    try
+                    {
+                        await FetchScheduleAsync(team, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        lock (_gate) _queuedTeams.Remove(team);
+                    }
                 }
                 else if (year != 0)
                 {
-                    await FetchBracketAsync(year, ct).ConfigureAwait(false);
-                    lock (_gate) _queuedBracketYear = 0;
+                    try
+                    {
+                        await FetchBracketAsync(year, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        lock (_gate) _queuedBracketYear = 0;
+                    }
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Schedule worker error; continuing.", ex); // never let the loop die
             }
         }
     }

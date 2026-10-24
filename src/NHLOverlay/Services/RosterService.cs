@@ -88,13 +88,24 @@ public sealed class RosterService : IDisposable
                 lock (_gate) team = _queued.FirstOrDefault();
                 if (team is null) continue;
 
-                await FetchAsync(team, ct).ConfigureAwait(false);
-                lock (_gate) _queued.Remove(team);
+                try
+                {
+                    await FetchAsync(team, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (_gate) _queued.Remove(team);
+                }
+
                 await Task.Delay(RequestGap, ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Roster worker error; continuing.", ex); // never let the loop die
             }
         }
     }

@@ -10,7 +10,9 @@ namespace NHLOverlay.Services;
 /// Detection is state based: each condition (game started, in overtime, final, a player with two or three
 /// goals, ...) has a stable key and fires once, the first time it is seen. The first time a game is seen
 /// (app start, day rollover) its current conditions and goals are only recorded, never announced, so a
-/// restart doesn't replay the night's goals.
+/// restart doesn't replay the night's goals. A game stays in this baseline mode until its goal list
+/// accounts for the score (or for <see cref="MaxBaselineSightings"/> snapshots), so goals that show up
+/// late in the feed aren't announced as new.
 /// </para>
 /// <para>
 /// Goals are identified by team, running score and period with a time tolerance: a scoring change
@@ -23,12 +25,36 @@ public sealed class GameEventDetector
     /// <summary>Two goals with the same team/score/period within this many seconds are the same goal.</summary>
     internal const int GoalTimeToleranceSeconds = 90;
 
+    /// <summary>A game whose goal list never matches its score stops being a baseline after this many snapshots.</summary>
+    internal const int MaxBaselineSightings = 5;
+
     private readonly Dictionary<long, List<KnownGoal>> _knownGoals = [];
+    private readonly Dictionary<long, int> _baselineSightings = [];
     private readonly HashSet<string> _emitted = [];
     private Func<long, RosterPlayer?>? _findPlayer;
     private IReadOnlySet<string>? _countries;
 
-    private sealed record KnownGoal(string Team, int Away, int Home, int Period, int Seconds);
+    /// <param name="LiveKey">The goal's event key when it was first seen live (not in a baseline).</param>
+    private sealed record KnownGoal(string Team, int Away, int Home, int Period, int Seconds, string? LiveKey = null);
+
+    /// <summary>True when the non-shootout goal list accounts for the whole score.</summary>
+    internal static bool GoalsMatchScore(HockeyGame game)
+    {
+        var scoreTotal = (game.Away.Score ?? 0) + (game.Home.Score ?? 0);
+        var shootoutGoal = game.Goals.Any(g => g.IsShootout) ? 1 : 0;
+        return game.Goals.Count(g => !g.IsShootout) == scoreTotal - shootoutGoal;
+    }
+
+    /// <summary>
+    /// Counts a baseline sighting of <paramref name="game"/>; true once the game is live (its goal list is
+    /// complete, or it has been seen <see cref="MaxBaselineSightings"/> times).
+    /// </summary>
+    internal static bool EndBaseline(Dictionary<long, int> sightings, HockeyGame game)
+    {
+        var count = sightings.GetValueOrDefault(game.Id) + 1;
+        sightings[game.Id] = count;
+        return GoalsMatchScore(game) || count >= MaxBaselineSightings;
+    }
 
     /// <param name="snapshot">The latest scoreboard.</param>
     /// <param name="findPlayer">Roster lookup for watched-country points (optional).</param>
@@ -44,24 +70,33 @@ public sealed class GameEventDetector
         {
             var hatTricks = snapshot.HatTricks.GetValueOrDefault(game.Id) ?? [];
             var gameEvents = new List<GameEvent>();
-            var firstSighting = !_knownGoals.ContainsKey(game.Id);
+            var baseline = _baselineSightings.ContainsKey(game.Id) || !_knownGoals.ContainsKey(game.Id);
 
-            DetectGoals(game, gameEvents);
+            DetectGoals(game, baseline, gameEvents);
             DetectConditions(game, hatTricks, gameEvents);
 
-            if (firstSighting) continue; // baseline: keys are now marked, nothing is announced
+            if (baseline)
+            {
+                // Keys are now marked, nothing is announced.
+                if (EndBaseline(_baselineSightings, game)) _baselineSightings.Remove(game.Id);
+                continue;
+            }
+
             events.AddRange(gameEvents);
         }
 
         // Forget games that left the today view (their keys stay, so they never re-fire).
         var current = snapshot.Games.Select(g => g.Id).ToHashSet();
         foreach (var id in _knownGoals.Keys.Where(id => !current.Contains(id)).ToList())
+        {
             _knownGoals.Remove(id);
+            _baselineSightings.Remove(id);
+        }
 
         return events.OrderBy(e => Priority(e.Kind)).ToList();
     }
 
-    private void DetectGoals(HockeyGame game, List<GameEvent> events)
+    private void DetectGoals(HockeyGame game, bool baseline, List<GameEvent> events)
     {
         if (!_knownGoals.TryGetValue(game.Id, out var known))
         {
@@ -78,21 +113,21 @@ public sealed class GameEventDetector
             var match = known.FirstOrDefault(k => SameGoal(k, identity));
             if (match is not null)
             {
-                known[known.IndexOf(match)] = identity; // follow corrections
+                known[known.IndexOf(match)] = identity with { LiveKey = match.LiveKey }; // follow corrections
+                // A live goal's watched-country points are checked again: the roster may have loaded since.
+                if (match.LiveKey is { } liveKey) DetectCountryPoints(game, goal, goals, liveKey, events);
                 continue;
             }
 
-            known.Add(identity);
             var key = $"goal:{game.Id}:{identity.Period}:{identity.Seconds}:{identity.Team}:{identity.Away}-{identity.Home}";
+            known.Add(baseline ? identity : identity with { LiveKey = key });
             if (_emitted.Add(key))
                 events.Add(GoalEvent(game, goal, goals, key));
             DetectCountryPoints(game, goal, goals, key, events);
         }
 
         // A goal that vanished while the data is consistent (goal count matches the score) was overturned.
-        var scoreTotal = (game.Away.Score ?? 0) + (game.Home.Score ?? 0);
-        var shootoutGoal = game.Goals.Any(g => g.IsShootout) ? 1 : 0;
-        if (goals.Count > 0 && goals.Count == scoreTotal - shootoutGoal)
+        if (goals.Count > 0 && GoalsMatchScore(game))
             known.RemoveAll(k => !seen.Any(s => SameGoal(k, s)));
     }
 
