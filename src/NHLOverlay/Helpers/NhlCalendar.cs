@@ -1,27 +1,42 @@
 namespace NHLOverlay.Helpers;
 
 /// <summary>
-/// Maps "now" to the NHL schedule dates worth showing.
+/// Maps "now" to NHL schedule dates.
 /// <para>
-/// NHL schedule dates are North American dates. For a European user an NHL "Saturday" game can start
-/// early on Sunday morning local time, so the local calendar date must never be used to pick the NHL
-/// date. Instead we evaluate the current instant in US Eastern time (handles DST on both continents)
-/// and also keep the previous NHL date until midday Eastern, so last night's late games and results
-/// remain visible through the European morning.
+/// NHL schedule dates are North American dates, so the local calendar date must never be used directly:
+/// for a European user an NHL Saturday game often starts at 02:00 on Sunday. Instead the app uses the
+/// user's <i>hockey day</i>, which runs from 08:00 to 08:00 local time. Tonight's games, including those
+/// after midnight, therefore count as "today", and the day only rolls over the next morning, after the
+/// last games of the night have finished.
 /// </para>
 /// </summary>
 public static class NhlCalendar
 {
-    /// <summary>Eastern-time hour before which the previous NHL date is still included.</summary>
-    public const int PreviousDateCutoffHour = 12;
+    /// <summary>Local hour at which a new hockey day begins.</summary>
+    public const int HockeyDayStartHour = 8;
 
     public static TimeZoneInfo EasternTimeZone { get; } = FindEasternTimeZone();
 
-    public static IReadOnlyList<DateOnly> GetRelevantDates(DateTimeOffset now, TimeZoneInfo? eastern = null)
+    /// <summary>The local calendar date of the hockey day containing <paramref name="instant"/>.</summary>
+    public static DateOnly GetHockeyDay(DateTimeOffset instant, TimeZoneInfo localZone)
     {
-        var easternNow = TimeZoneInfo.ConvertTime(now, eastern ?? EasternTimeZone);
-        var today = DateOnly.FromDateTime(easternNow.DateTime);
-        return easternNow.Hour < PreviousDateCutoffHour ? [today.AddDays(-1), today] : [today];
+        var local = TimeZoneInfo.ConvertTime(instant, localZone);
+        var day = DateOnly.FromDateTime(local.DateTime);
+        return local.Hour < HockeyDayStartHour ? day.AddDays(-1) : day;
+    }
+
+    /// <summary>
+    /// The NHL schedule date played during the user's current hockey day: the NHL date containing the
+    /// afternoon (16:00 local) of that day. For every time zone from Hawaii to eastern Europe this is the
+    /// slate that starts that local evening or night.
+    /// </summary>
+    public static DateOnly GetTodayNhlDate(DateTimeOffset now, TimeZoneInfo localZone, TimeZoneInfo? eastern = null)
+    {
+        var hockeyDay = GetHockeyDay(now, localZone);
+        var afternoon = hockeyDay.ToDateTime(new TimeOnly(16, 0), DateTimeKind.Unspecified);
+        var afternoonUtc = TimeZoneInfo.ConvertTimeToUtc(afternoon, localZone);
+        var easternAfternoon = TimeZoneInfo.ConvertTimeFromUtc(afternoonUtc, eastern ?? EasternTimeZone);
+        return DateOnly.FromDateTime(easternAfternoon);
     }
 
     private static TimeZoneInfo FindEasternTimeZone()

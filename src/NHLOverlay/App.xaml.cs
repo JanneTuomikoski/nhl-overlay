@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Threading;
 using NHLOverlay.Helpers;
+using NHLOverlay.Models;
 using NHLOverlay.Services;
 using NHLOverlay.ViewModels;
 using NHLOverlay.Views;
@@ -16,8 +17,10 @@ public partial class App : Application
     private Mutex? _singleInstance;
     private SettingsService? _settings;
     private NhlApiService? _api;
+    private LogoService? _logos;
     private ScorePollingService? _polling;
     private GameStateService? _state;
+    private HotkeyService? _hotkeys;
     private OverlayWindow? _overlay;
     private TrayIcon? _tray;
     private SettingsWindow? _settingsWindow;
@@ -50,22 +53,32 @@ public partial class App : Application
 
         _state = new GameStateService();
         _api = new NhlApiService();
+        _logos = new LogoService(Path.Combine(_settings.CacheDirectory, "logos"));
         _polling = new ScorePollingService(
             _api,
             _state,
             () => TimeSpan.FromSeconds(_settings.Current.General.RefreshIntervalSeconds),
             TimeProvider.System);
 
-        var overlayViewModel = new OverlayViewModel(_state, _settings, Dispatcher);
+        var overlayViewModel = new OverlayViewModel(_state, _settings, _logos, _polling.SetViewedDate, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
         _overlay.IsVisibleChanged += (_, _) => _tray?.SetOverlayVisible(_overlay.IsVisible);
 
         _tray = new TrayIcon();
         _tray.ToggleOverlayRequested += (_, _) => ToggleOverlay();
+        _tray.ToggleInteractionRequested += (_, _) => ToggleInteraction();
+        _tray.ToggleDisplayModeRequested += (_, _) => _settings.Update(s =>
+            s.Appearance.DisplayMode = s.Appearance.DisplayMode == DisplayMode.Compact ? DisplayMode.Expanded : DisplayMode.Compact);
         _tray.RefreshRequested += (_, _) => _polling.RequestRefresh();
         _tray.SettingsRequested += (_, _) => ShowSettings();
         _tray.ExitRequested += (_, _) => Shutdown();
+        _settings.Changed += (_, s) => Dispatcher.InvokeAsync(() => SyncTray(s));
+        SyncTray(_settings.Current);
+
+        // The hotkeys need a window handle even while the overlay starts hidden.
+        var hwnd = _overlay.EnsureHandle();
+        _hotkeys = new HotkeyService(hwnd, _settings, ToggleOverlay, ToggleInteraction);
 
         if (_settings.Current.General.ShowOverlayOnStartup)
             _overlay.Show();
@@ -74,11 +87,26 @@ public partial class App : Application
         _polling.Start();
     }
 
+    private void SyncTray(AppSettings s)
+    {
+        _tray?.SetInteractionMode(!s.Window.ClickThrough);
+        _tray?.SetExpanded(s.Appearance.DisplayMode == DisplayMode.Expanded);
+    }
+
     private void ToggleOverlay()
     {
         if (_overlay is null) return;
         if (_overlay.IsVisible) _overlay.Hide();
         else _overlay.Show();
+    }
+
+    /// <summary>Switches between click-through and interaction mode. Entering interaction mode also shows the overlay.</summary>
+    private void ToggleInteraction()
+    {
+        if (_settings is null || _overlay is null) return;
+        var interactive = _settings.Current.Window.ClickThrough;
+        _settings.Update(s => s.Window.ClickThrough = !interactive);
+        if (interactive && !_overlay.IsVisible) _overlay.Show();
     }
 
     private void ShowSettings()
@@ -91,9 +119,15 @@ public partial class App : Application
             return;
         }
 
-        var viewModel = new SettingsViewModel(_settings!, _state!, () => _polling?.RequestRefresh(), Dispatcher);
+        var viewModel = new SettingsViewModel(_settings!, _state!, _hotkeys!, () => _polling?.RequestRefresh(), Dispatcher);
         _settingsWindow = new SettingsWindow(viewModel);
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Closed += (_, _) =>
+        {
+            _settingsWindow = null;
+            _hotkeys?.Suspend(false);
+        };
+        // Release the global hotkeys so new combinations can be recorded in the settings window.
+        _hotkeys?.Suspend(true);
         _settingsWindow.Show();
         _settingsWindow.Activate();
     }
@@ -110,6 +144,8 @@ public partial class App : Application
         Log.Info("Exiting.");
         _polling?.Dispose();
         _api?.Dispose();
+        _logos?.Dispose();
+        _hotkeys?.Dispose();
         if (_overlay is not null)
         {
             _overlay.AllowClose = true;

@@ -120,6 +120,7 @@ internal static class NhlMapper
         EventId = dto.EventId,
         PlayerId = dto.PlayerId ?? 0,
         ScorerName = FullName(dto),
+        ScorerShortName = dto.Name?.Default ?? FullName(dto),
         TeamAbbrev = dto.TeamAbbrev ?? "",
         Period = dto.PeriodDescriptor?.Number ?? dto.Period ?? 0,
         PeriodType = ParsePeriodType(dto.PeriodDescriptor?.PeriodType),
@@ -127,6 +128,7 @@ internal static class NhlMapper
         AwayScore = dto.AwayScore ?? 0,
         HomeScore = dto.HomeScore ?? 0,
         Strength = dto.Strength,
+        IsEmptyNet = string.Equals(dto.GoalModifier, "empty-net", StringComparison.OrdinalIgnoreCase),
     };
 
     private static string FullName(GoalDto dto)

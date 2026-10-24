@@ -6,55 +6,85 @@ namespace NHLOverlay.Tests;
 
 public class DateTimeHandlingTests
 {
-    private static DateTimeOffset Helsinki(int year, int month, int day, int hour, int minute = 0)
+    private static DateTimeOffset At(TimeZoneInfo zone, int year, int month, int day, int hour, int minute = 0)
     {
         var local = new DateTime(year, month, day, hour, minute, 0, DateTimeKind.Unspecified);
-        return new DateTimeOffset(local, Zones.Helsinki.GetUtcOffset(local));
+        return new DateTimeOffset(local, zone.GetUtcOffset(local));
     }
 
+    private static DateTimeOffset Helsinki(int year, int month, int day, int hour, int minute = 0) =>
+        At(Zones.Helsinki, year, month, day, hour, minute);
+
+    private static DateOnly TodayInHelsinki(DateTimeOffset now) => NhlCalendar.GetTodayNhlDate(now, Zones.Helsinki, Zones.Eastern);
+
     [Fact]
-    public void Late_saturday_night_in_finland_still_shows_the_saturday_nhl_date()
+    public void Saturday_evening_in_finland_is_the_saturday_slate() =>
+        Assert.Equal(new DateOnly(2026, 10, 24), TodayInHelsinki(Helsinki(2026, 10, 24, 20)));
+
+    [Fact]
+    public void Games_after_midnight_still_count_as_today()
     {
-        // 02:30 Sunday in Helsinki is 19:30 Saturday in New York.
-        var dates = NhlCalendar.GetRelevantDates(Helsinki(2026, 10, 25, 2, 30), Zones.Eastern);
-        Assert.Equal([new DateOnly(2026, 10, 24)], dates);
+        // 02:30 on Sunday in Helsinki is still Saturday's hockey night.
+        Assert.Equal(new DateOnly(2026, 10, 24), TodayInHelsinki(Helsinki(2026, 10, 25, 2, 30)));
+        Assert.Equal(new DateOnly(2026, 10, 24), TodayInHelsinki(Helsinki(2026, 10, 25, 7, 59)));
     }
 
     [Fact]
-    public void Finnish_morning_includes_last_nights_nhl_date()
+    public void Day_rolls_over_in_the_morning()
     {
-        // 10:00 Sunday in Helsinki (EU DST already ended) is 04:00 Sunday in New York.
-        var dates = NhlCalendar.GetRelevantDates(Helsinki(2026, 10, 25, 10), Zones.Eastern);
-        Assert.Equal([new DateOnly(2026, 10, 24), new DateOnly(2026, 10, 25)], dates);
+        Assert.Equal(new DateOnly(2026, 10, 25), TodayInHelsinki(Helsinki(2026, 10, 25, 8)));
+        Assert.Equal(new DateOnly(2026, 10, 25), TodayInHelsinki(Helsinki(2026, 10, 25, 23)));
     }
 
     [Fact]
-    public void Finnish_evening_shows_only_the_current_nhl_date()
+    public void Handles_the_week_between_eu_and_us_dst_changes()
     {
-        var dates = NhlCalendar.GetRelevantDates(Helsinki(2026, 10, 25, 20), Zones.Eastern);
-        Assert.Equal([new DateOnly(2026, 10, 25)], dates);
+        // EU is already on winter time (UTC+2) while the US is still on EDT until Nov 1.
+        Assert.Equal(new DateOnly(2026, 10, 31), TodayInHelsinki(Helsinki(2026, 11, 1, 3)));
+        Assert.Equal(new DateOnly(2026, 11, 1), TodayInHelsinki(Helsinki(2026, 11, 1, 12)));
     }
 
-    [Fact]
-    public void Handles_the_us_dst_change_night()
+    [Theory]
+    [InlineData("America/New_York", 23, 30)]
+    [InlineData("America/Los_Angeles", 21, 0)]
+    [InlineData("Europe/London", 23, 0)]
+    public void North_american_and_european_evenings_map_to_the_same_slate(string zoneId, int hour, int minute)
     {
-        // US DST ends 2026-11-01 02:00 EDT (06:00 UTC). 06:30 UTC is 01:30 EST on Nov 1.
-        var dates = NhlCalendar.GetRelevantDates(new DateTimeOffset(2026, 11, 1, 6, 30, 0, TimeSpan.Zero), Zones.Eastern);
-        Assert.Equal([new DateOnly(2026, 10, 31), new DateOnly(2026, 11, 1)], dates);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+        Assert.Equal(new DateOnly(2026, 10, 24), NhlCalendar.GetTodayNhlDate(At(zone, 2026, 10, 24, hour, minute), zone, Zones.Eastern));
     }
 
     [Fact]
-    public void Start_time_converts_to_local_time_across_the_eu_dst_change()
+    public void Tonights_games_show_time_only_and_other_days_get_a_weekday()
     {
         var now = Helsinki(2026, 10, 24, 20);
         var culture = CultureInfo.InvariantCulture;
 
-        // 23:00 UTC on Oct 24 is 02:00 EEST (UTC+3) on Sunday.
-        Assert.Equal("Sun 02:00", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 24, 23, 0, 0, TimeSpan.Zero), Zones.Helsinki, now, culture));
-        // 02:00 UTC on Oct 25 is after the change: 04:00 EET (UTC+2), not 05:00.
-        Assert.Equal("Sun 04:00", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 25, 2, 0, 0, TimeSpan.Zero), Zones.Helsinki, now, culture));
-        // Same local day: time only.
+        // 23:00 UTC on Oct 24 is 02:00 EEST (UTC+3) on Sunday: tonight, so no weekday.
+        Assert.Equal("02:00", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 24, 23, 0, 0, TimeSpan.Zero), Zones.Helsinki, now, culture));
+        // 02:00 UTC on Oct 25 is after the EU DST change: 04:00 EET (UTC+2), not 05:00.
+        Assert.Equal("04:00", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 25, 2, 0, 0, TimeSpan.Zero), Zones.Helsinki, now, culture));
         Assert.Equal("22:30", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 24, 19, 30, 0, TimeSpan.Zero), Zones.Helsinki, now, culture));
+        // Sunday evening's game is a different hockey day.
+        Assert.Equal("SUN 20:00", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 25, 18, 0, 0, TimeSpan.Zero), Zones.Helsinki, now, culture));
+    }
+
+    [Fact]
+    public void Start_time_uses_regional_time_format() =>
+        Assert.Equal("2.00", GameStatusFormatter.FormatStartTime(new DateTimeOffset(2026, 10, 24, 23, 0, 0, TimeSpan.Zero), Zones.Helsinki,
+            Helsinki(2026, 10, 24, 20), CultureInfo.GetCultureInfo("fi-FI")));
+
+    [Theory]
+    [InlineData(0, "fi-FI", "TODAY")]
+    [InlineData(-1, "fi-FI", "YESTERDAY")]
+    [InlineData(1, "fi-FI", "TOMORROW")]
+    [InlineData(-2, "fi-FI", "THU 22.10")]
+    [InlineData(-2, "en-US", "THU 10/22")]
+    [InlineData(-2, "de-DE", "THU 22.10")]
+    public void Formats_day_labels(int offset, string culture, string expected)
+    {
+        var today = new DateOnly(2026, 10, 24);
+        Assert.Equal(expected, GameStatusFormatter.FormatDayLabel(today.AddDays(offset), today, CultureInfo.GetCultureInfo(culture)));
     }
 
     [Theory]

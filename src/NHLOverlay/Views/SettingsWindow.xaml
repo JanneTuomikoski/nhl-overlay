@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:NHLOverlay.ViewModels"
+        xmlns:controls="clr-namespace:NHLOverlay.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
         Title="NHL Live Overlay - Settings"
@@ -24,6 +25,13 @@
         <Style x:Key="ValueText" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,0,0,2" />
+        </Style>
+        <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
+        <Style TargetType="controls:HotkeyBox" BasedOn="{StaticResource ReadOnlyField}">
+            <Setter Property="Width" Value="180" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
     </Window.Resources>
 
@@ -61,6 +69,12 @@
                     <StackPanel>
                         <TextBlock Text="Appearance" Style="{StaticResource SectionHeader}" />
 
+                        <TextBlock Text="View" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding DisplayModes}"
+                                 SelectedItem="{Binding DisplayMode}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Expanded shows logos, team names, shots and every goal; good for a large or vertical monitor. Also toggled from the overlay header or the tray." />
+
                         <TextBlock Text="Background opacity" Style="{StaticResource FieldLabel}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -79,17 +93,63 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="56" />
                             </Grid.ColumnDefinitions>
-                            <Slider Style="{StaticResource DarkSlider}" Minimum="75" Maximum="200" SmallChange="5" LargeChange="25"
+                            <Slider Style="{StaticResource DarkSlider}" Minimum="{Binding MinUiScalePercent, Mode=OneTime}"
+                                    Maximum="{Binding MaxUiScalePercent, Mode=OneTime}" SmallChange="5" LargeChange="25"
                                     Value="{Binding UiScalePercent}" />
                             <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center"
                                        Text="{Binding UiScalePercent, StringFormat={}{0:0} %}" />
                         </Grid>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Tip: hold Ctrl and use the mouse wheel over the overlay to scale it, and drag its bottom-right corner to change the width." />
 
                         <TextBlock Text="Game cards" Style="{StaticResource FieldLabel}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowTeamLogos}"
+                                  Content="Show team logos" />
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowGameClock}"
                                   Content="Show the game clock" />
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowShotsOnGoal}"
-                                  Content="Show shots on goal" />
+                                  Content="Show shots on goal in compact view" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Overlay">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Overlay window" Style="{StaticResource SectionHeader}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ClickThrough}"
+                                  Content="Click-through (mouse input goes to the game underneath)" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,6"
+                                   Text="In click-through mode the overlay's buttons are hidden. Use the interaction hotkey or the tray menu to switch back." />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AlwaysOnTop}"
+                                  Content="Always on top" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding LockPosition}"
+                                  Content="Lock position and size" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding SnapToEdges}"
+                                  Content="Snap to screen edges when dragged" />
+
+                        <TextBlock Text="Global hotkeys" Style="{StaticResource FieldLabel}" Margin="0,22,0,6" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10"
+                                   Text="Click a box and press the new combination (Ctrl, Alt or Win required). Backspace clears it. Hotkeys are paused while this window is open." />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Show / hide overlay" VerticalAlignment="Center" Margin="0,0,16,8" />
+                            <controls:HotkeyBox Grid.Column="1" Margin="0,0,0,8" AutomationProperties.Name="Show or hide overlay hotkey"
+                                                Text="{Binding ToggleOverlayHotkey, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Grid.Row="1" Text="Toggle interaction mode" VerticalAlignment="Center" Margin="0,0,16,0" />
+                            <controls:HotkeyBox Grid.Row="1" Grid.Column="1" AutomationProperties.Name="Toggle interaction mode hotkey"
+                                                Text="{Binding ToggleInteractionHotkey, UpdateSourceTrigger=PropertyChanged}" />
+                        </Grid>
+                        <TextBlock Text="{Binding HotkeyProblems}" Style="{StaticResource Hint}" Margin="0,10,0,0"
+                                   Foreground="{StaticResource StatusStaleBrush}"
+                                   Visibility="{Binding HasHotkeyProblems, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

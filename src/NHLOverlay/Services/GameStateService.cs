@@ -7,7 +7,18 @@ public sealed record ScoreboardSnapshot
 {
     public static readonly ScoreboardSnapshot Empty = new();
 
+    /// <summary>The NHL date played during the user's current hockey day (see <see cref="Helpers.NhlCalendar"/>).</summary>
+    public DateOnly TodayNhlDate { get; init; }
+
+    /// <summary>
+    /// The "today" view: every game of <see cref="TodayNhlDate"/> plus any game from the previous date that
+    /// is still in progress (or not yet official), so a late game never disappears at the day rollover.
+    /// </summary>
     public IReadOnlyList<HockeyGame> Games { get; init; } = [];
+
+    /// <summary>All loaded NHL dates (always yesterday and today, plus a date the user navigated to).</summary>
+    public IReadOnlyDictionary<DateOnly, IReadOnlyList<HockeyGame>> GamesByDate { get; init; } =
+        new Dictionary<DateOnly, IReadOnlyList<HockeyGame>>();
 
     /// <summary>When every request of a refresh last succeeded. Null until the first success.</summary>
     public DateTimeOffset? LastSuccessUtc { get; init; }

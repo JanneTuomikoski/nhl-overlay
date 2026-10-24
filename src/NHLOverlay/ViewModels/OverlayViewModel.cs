@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Windows.Input;
 using System.Windows.Threading;
 using NHLOverlay.Helpers;
+using NHLOverlay.Models;
 using NHLOverlay.Services;
 
 namespace NHLOverlay.ViewModels;
@@ -16,34 +18,79 @@ public enum ConnectionState
 
 public sealed class OverlayViewModel : ObservableObject
 {
+    public const int MaxDaysBack = 7;
+    public const int MaxDaysForward = 1;
+
+    /// <summary>Browsing other days returns to today automatically so live scores are never hidden for long.</summary>
+    private static readonly TimeSpan ReturnToTodayAfter = TimeSpan.FromMinutes(2);
+
     private readonly SettingsService _settings;
+    private readonly LogoService _logos;
+    private readonly Action<DateOnly?> _requestDate;
+    private readonly DispatcherTimer _returnToToday;
     private readonly Dictionary<long, GameCardViewModel> _cards = [];
     private ScoreboardSnapshot _snapshot = ScoreboardSnapshot.Empty;
+    private int _dayOffset;
     private double _backgroundOpacity;
     private double _uiScale;
+    private bool _isInteractive;
+    private bool _isExpanded;
+    private bool _isLocked;
     private ConnectionState _connection;
     private string _statusText = "";
     private string _statusToolTip = "";
+    private string _dayLabel = "TODAY";
     private string? _message;
 
-    public OverlayViewModel(GameStateService state, SettingsService settings, Dispatcher dispatcher)
+    public OverlayViewModel(GameStateService state, SettingsService settings, LogoService logos, Action<DateOnly?> requestDate, Dispatcher dispatcher)
     {
         _settings = settings;
+        _logos = logos;
+        _requestDate = requestDate;
+        _returnToToday = new DispatcherTimer(DispatcherPriority.Normal, dispatcher) { Interval = ReturnToTodayAfter };
+        _returnToToday.Tick += (_, _) => SetDayOffset(0);
+
+        PreviousDayCommand = new RelayCommand(() => SetDayOffset(_dayOffset - 1), () => _dayOffset > -MaxDaysBack);
+        NextDayCommand = new RelayCommand(() => SetDayOffset(_dayOffset + 1), () => _dayOffset < MaxDaysForward);
+        TodayCommand = new RelayCommand(() => SetDayOffset(0), () => _dayOffset != 0);
+        ToggleDisplayModeCommand = new RelayCommand(() => settings.Update(s =>
+            s.Appearance.DisplayMode = s.Appearance.DisplayMode == DisplayMode.Compact ? DisplayMode.Expanded : DisplayMode.Compact));
+
         state.Changed += (_, snapshot) => dispatcher.InvokeAsync(() => Apply(snapshot));
         settings.Changed += (_, _) => dispatcher.InvokeAsync(() =>
         {
-            ApplyAppearance();
+            ApplySettings();
             Apply(_snapshot);
         });
-        ApplyAppearance();
+        ApplySettings();
         Apply(state.Current);
     }
 
     public ObservableCollection<GameCardViewModel> Games { get; } = [];
 
+    public ICommand PreviousDayCommand { get; }
+
+    public ICommand NextDayCommand { get; }
+
+    public ICommand TodayCommand { get; }
+
+    public ICommand ToggleDisplayModeCommand { get; }
+
     public double BackgroundOpacity { get => _backgroundOpacity; private set => SetProperty(ref _backgroundOpacity, value); }
 
     public double UiScale { get => _uiScale; private set => SetProperty(ref _uiScale, value); }
+
+    /// <summary>False in click-through mode: buttons, arrows and the resize grip are hidden.</summary>
+    public bool IsInteractive { get => _isInteractive; private set => SetProperty(ref _isInteractive, value); }
+
+    public bool IsExpanded { get => _isExpanded; private set => SetProperty(ref _isExpanded, value); }
+
+    public bool IsLocked { get => _isLocked; private set => SetProperty(ref _isLocked, value); }
+
+    public bool IsViewingToday => _dayOffset == 0;
+
+    /// <summary>"TODAY", "YESTERDAY", "TOMORROW" or e.g. "THU 22.10".</summary>
+    public string DayLabel { get => _dayLabel; private set => SetProperty(ref _dayLabel, value); }
 
     public ConnectionState Connection { get => _connection; private set => SetProperty(ref _connection, value); }
 
@@ -64,11 +111,33 @@ public sealed class OverlayViewModel : ObservableObject
 
     public bool HasMessage => Message is not null;
 
-    private void ApplyAppearance()
+    private void SetDayOffset(int offset)
     {
-        var appearance = _settings.Current.Appearance;
-        BackgroundOpacity = appearance.BackgroundOpacity;
-        UiScale = appearance.UiScale;
+        offset = Math.Clamp(offset, -MaxDaysBack, MaxDaysForward);
+        _returnToToday.Stop();
+        if (offset != 0) _returnToToday.Start();
+        if (offset == _dayOffset) return;
+
+        _dayOffset = offset;
+        OnPropertyChanged(nameof(IsViewingToday));
+        var viewed = ViewedDate();
+        // Yesterday and today are always loaded; other dates are fetched on demand.
+        _requestDate(offset is 0 or -1 || viewed is null ? null : viewed);
+        Apply(_snapshot);
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    private DateOnly? ViewedDate() =>
+        _snapshot.TodayNhlDate == default ? null : _snapshot.TodayNhlDate.AddDays(_dayOffset);
+
+    private void ApplySettings()
+    {
+        var s = _settings.Current;
+        BackgroundOpacity = s.Appearance.BackgroundOpacity;
+        UiScale = s.Appearance.UiScale;
+        IsExpanded = s.Appearance.DisplayMode == DisplayMode.Expanded;
+        IsInteractive = !s.Window.ClickThrough;
+        IsLocked = s.Window.LockPosition;
     }
 
     private void Apply(ScoreboardSnapshot snapshot)
@@ -77,8 +146,49 @@ public sealed class OverlayViewModel : ObservableObject
         var now = DateTimeOffset.UtcNow;
         var culture = CultureInfo.CurrentCulture;
         var appearance = _settings.Current.Appearance;
-        var ordered = GameOrdering.Sort(snapshot.Games);
 
+        var viewed = ViewedDate();
+        DayLabel = viewed is { } date ? GameStatusFormatter.FormatDayLabel(date, snapshot.TodayNhlDate, culture) : "TODAY";
+
+        IReadOnlyList<HockeyGame>? source = _dayOffset == 0
+            ? snapshot.HasData ? snapshot.Games : null
+            : viewed is { } d && snapshot.GamesByDate.TryGetValue(d, out var dayGames) ? dayGames : null;
+        SyncCards(source is null ? [] : GameOrdering.Sort(source), appearance, now, culture);
+
+        Connection = (snapshot.HasData, snapshot.IsStale, snapshot.LastError) switch
+        {
+            (false, _, null) => ConnectionState.Connecting,
+            (false, _, _) => ConnectionState.Error,
+            (true, true, _) => ConnectionState.Stale,
+            _ => ConnectionState.Ok,
+        };
+
+        string Time(DateTimeOffset value, string format = "t") => value.ToLocalTime().ToString(format, culture);
+
+        Message = (Connection, source) switch
+        {
+            (ConnectionState.Connecting, _) => "Loading NHL scores...",
+            (ConnectionState.Error, _) => snapshot.NextRefreshUtc is { } next
+                ? $"NHL scores unavailable. Retrying at {Time(next)}."
+                : "NHL scores unavailable.",
+            (_, null) => "Loading...",
+            _ when Games.Count == 0 => _dayOffset == 0 ? "No NHL games today." : $"No NHL games on {DayLabel.ToLowerInvariant()}.",
+            _ => null,
+        };
+
+        StatusText = snapshot.LastSuccessUtc is { } success ? Time(success) : "--:--";
+
+        var tip = new List<string>
+        {
+            snapshot.LastSuccessUtc is { } ok ? $"Last updated {Time(ok, "T")}" : "Not updated yet",
+        };
+        if (snapshot.NextRefreshUtc is { } nextRefresh) tip.Add($"Next refresh {Time(nextRefresh, "T")}");
+        if (snapshot.IsStale && snapshot.LastError is { } error) tip.Add($"Showing cached scores. Last error: {error}");
+        StatusToolTip = string.Join(Environment.NewLine, tip);
+    }
+
+    private void SyncCards(IReadOnlyList<HockeyGame> ordered, AppearanceSettings appearance, DateTimeOffset now, CultureInfo culture)
+    {
         var ids = ordered.Select(g => g.Id).ToHashSet();
         for (var i = Games.Count - 1; i >= 0; i--)
         {
@@ -92,7 +202,7 @@ public sealed class OverlayViewModel : ObservableObject
             var game = ordered[i];
             if (!_cards.TryGetValue(game.Id, out var card))
             {
-                card = new GameCardViewModel(game.Id);
+                card = new GameCardViewModel(game.Id, _logos);
                 _cards[game.Id] = card;
             }
 
@@ -101,35 +211,5 @@ public sealed class OverlayViewModel : ObservableObject
             if (index < 0) Games.Insert(i, card);
             else if (index != i) Games.Move(index, i);
         }
-
-        Connection = (snapshot.HasData, snapshot.IsStale, snapshot.LastError) switch
-        {
-            (false, _, null) => ConnectionState.Connecting,
-            (false, _, _) => ConnectionState.Error,
-            (true, true, _) => ConnectionState.Stale,
-            _ => ConnectionState.Ok,
-        };
-
-        string Time(DateTimeOffset value, string format = "t") => value.ToLocalTime().ToString(format, culture);
-
-        Message = Connection switch
-        {
-            ConnectionState.Connecting => "Loading NHL scores...",
-            ConnectionState.Error => snapshot.NextRefreshUtc is { } next
-                ? $"NHL scores unavailable. Retrying at {Time(next)}."
-                : "NHL scores unavailable.",
-            _ when Games.Count == 0 => "No NHL games right now.",
-            _ => null,
-        };
-
-        StatusText = snapshot.LastSuccessUtc is { } success ? Time(success) : "--:--";
-
-        var tip = new List<string>
-        {
-            snapshot.LastSuccessUtc is { } ok ? $"Last updated {Time(ok, "T")}" : "Not updated yet",
-        };
-        if (snapshot.NextRefreshUtc is { } nextRefresh) tip.Add($"Next refresh {Time(nextRefresh, "T")}");
-        if (snapshot.IsStale && snapshot.LastError is { } error) tip.Add($"Showing cached scores. Last error: {error}");
-        StatusToolTip = string.Join(Environment.NewLine, tip);
     }
 }

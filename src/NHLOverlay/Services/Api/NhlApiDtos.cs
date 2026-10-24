@@ -85,4 +85,5 @@ internal sealed class GoalDto
     public int? AwayScore { get; set; }
     public int? HomeScore { get; set; }
     public string? Strength { get; set; }
+    public string? GoalModifier { get; set; }
 }

@@ -11,6 +11,9 @@ public sealed record GameGoal
 
     public string ScorerName { get; init; } = "";
 
+    /// <summary>Abbreviated name as the NHL displays it, e.g. "M. Michkov".</summary>
+    public string ScorerShortName { get; init; } = "";
+
     public string TeamAbbrev { get; init; } = "";
 
     public int Period { get; init; }
@@ -23,8 +26,10 @@ public sealed record GameGoal
 
     public int HomeScore { get; init; }
 
-    /// <summary>"ev", "pp", "sh" etc. as reported by the API.</summary>
+    /// <summary>"ev", "pp" or "sh" as reported by the API.</summary>
     public string? Strength { get; init; }
+
+    public bool IsEmptyNet { get; init; }
 
     /// <summary>Shootout goals do not count toward player goal totals (or hat tricks).</summary>
     public bool IsShootout => PeriodType == PeriodType.Shootout;

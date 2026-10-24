@@ -1,0 +1,65 @@
+<UserControl x:Class="NHLOverlay.Controls.ExpandedGameCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:NHLOverlay.ViewModels"
+             xmlns:controls="clr-namespace:NHLOverlay.Controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
+    <Border Padding="12,8,12,10" BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardDividerBrush}"
+            Background="Transparent" ToolTip="{Binding ToolTip}">
+        <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" MinWidth="34" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Away -->
+                <Image Grid.Row="0" Source="{Binding AwayLogo}" Width="30" Height="30" Margin="0,2,10,2"
+                       Style="{StaticResource TeamLogo}" />
+                <TextBlock Grid.Row="0" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis" Style="{StaticResource AwayTeamText}">
+                    <Run Text="{Binding AwayName, Mode=OneWay}" /><Run Text="{Binding AwayAbbrev, Mode=OneWay, StringFormat='  {0}'}"
+                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                </TextBlock>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding AwayShots, StringFormat='{}{0} SOG'}" FontSize="11"
+                           Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
+                           Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding AwayScore}" FontSize="22" FontWeight="Bold"
+                           TextAlignment="Right" Style="{StaticResource AwayTeamText}" />
+
+                <!-- Home -->
+                <Image Grid.Row="1" Source="{Binding HomeLogo}" Width="30" Height="30" Margin="0,2,10,2"
+                       Style="{StaticResource TeamLogo}" />
+                <TextBlock Grid.Row="1" Grid.Column="1" FontSize="15" TextTrimming="CharacterEllipsis" Style="{StaticResource HomeTeamText}">
+                    <Run Text="{Binding HomeName, Mode=OneWay}" /><Run Text="{Binding HomeAbbrev, Mode=OneWay, StringFormat='  {0}'}"
+                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                </TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding HomeShots, StringFormat='{}{0} SOG'}" FontSize="11"
+                           Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
+                           Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding HomeScore}" FontSize="22" FontWeight="Bold"
+                           TextAlignment="Right" Style="{StaticResource HomeTeamText}" />
+            </Grid>
+
+            <DockPanel Margin="0,4,0,0">
+                <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE8A7;"
+                        ToolTip="Open the NHL game page" AutomationProperties.Name="Open game page"
+                        Command="{Binding OpenGameCenterCommand}"
+                        Visibility="{Binding DataContext.IsInteractive, RelativeSource={RelativeSource AncestorType=Window},
+                                             Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Text="{Binding StatusText}" FontSize="12.5" VerticalAlignment="Center" Style="{StaticResource GameStatusText}" />
+            </DockPanel>
+
+            <controls:GoalList FontSize="12" Margin="0,6,0,0"
+                               Visibility="{Binding HasGoals, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+    </Border>
+</UserControl>

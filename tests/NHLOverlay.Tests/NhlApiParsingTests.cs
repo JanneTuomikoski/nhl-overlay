@@ -60,6 +60,8 @@ public class NhlApiParsingTests
         var first = final.Goals[0];
         Assert.Equal(8484387, first.PlayerId);
         Assert.Equal("Matvei Michkov", first.ScorerName);
+        Assert.Equal("M. Michkov", first.ScorerShortName);
+        Assert.Equal("pp", first.Strength);
         Assert.Equal("PHI", first.TeamAbbrev);
         Assert.Equal("13:59", first.TimeInPeriod);
         Assert.Equal(1, first.HomeScore);
@@ -77,6 +79,8 @@ public class NhlApiParsingTests
         Assert.Equal(PeriodType.Shootout, shootout.LastPeriodType);
         Assert.Single(shootout.Goals, g => g.IsShootout);
         Assert.Equal(10, shootout.Goals.Count(g => !g.IsShootout)); // 5-5 after overtime
+
+        Assert.Contains(games.SelectMany(g => g.Goals), g => g.IsEmptyNet);
     }
 
     [Fact]

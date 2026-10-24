@@ -43,15 +43,40 @@ public static class GameStatusFormatter
     }
 
     /// <summary>
-    /// Start time in the user's time zone. Prefixed with the weekday when the game is not on the
-    /// user's current local date (e.g. a Saturday NHL game shown as "Sun 02:00" in Finland).
+    /// Start time in the user's time zone and regional time format. Games in the current hockey day
+    /// (08:00-08:00 local) show only the time, so tonight's 02:00 game is simply "2.00"; games on other
+    /// days get an English weekday prefix ("SUN 2.00") to match the rest of the UI.
     /// </summary>
     public static string FormatStartTime(DateTimeOffset startUtc, TimeZoneInfo localZone, DateTimeOffset now, CultureInfo culture)
     {
         var localStart = TimeZoneInfo.ConvertTime(startUtc, localZone);
-        var localNow = TimeZoneInfo.ConvertTime(now, localZone);
         var time = localStart.ToString(culture.DateTimeFormat.ShortTimePattern, culture);
-        return localStart.Date == localNow.Date ? time : $"{localStart.ToString("ddd", culture)} {time}";
+        if (NhlCalendar.GetHockeyDay(startUtc, localZone) == NhlCalendar.GetHockeyDay(now, localZone))
+            return time;
+        return $"{Weekday(localStart.DayOfWeek)} {time}";
+    }
+
+    /// <summary>Header label for a viewed NHL date relative to today's NHL date.</summary>
+    public static string FormatDayLabel(DateOnly date, DateOnly today, CultureInfo culture) => (date.DayNumber - today.DayNumber) switch
+    {
+        0 => "TODAY",
+        -1 => "YESTERDAY",
+        1 => "TOMORROW",
+        _ => $"{Weekday(date.DayOfWeek)} {date.ToString(MonthDayPattern(culture), culture)}",
+    };
+
+    private static string Weekday(DayOfWeek day) => CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedDayName(day).ToUpperInvariant();
+
+    /// <summary>The culture's short date pattern with the year removed: "d.M." -> "d.M", "M/d/yyyy" -> "M/d".</summary>
+    internal static string MonthDayPattern(CultureInfo culture)
+    {
+        var pattern = culture.DateTimeFormat.ShortDatePattern.Replace("yyyy", "").Replace("yy", "");
+        var separators = new[] { '.', '/', '-', ' ', ',' };
+        pattern = pattern.Trim(separators);
+        while (pattern.Contains("..")) pattern = pattern.Replace("..", ".");
+        while (pattern.Contains("//")) pattern = pattern.Replace("//", "/");
+        while (pattern.Contains("--")) pattern = pattern.Replace("--", "-");
+        return pattern.Length > 0 ? pattern : "M/d";
     }
 
     public static string PeriodLabel(HockeyGame game) => PeriodLabel(game.Period, game.PeriodType, game.MaxRegulationPeriods);

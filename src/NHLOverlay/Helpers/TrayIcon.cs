@@ -8,8 +8,12 @@ public sealed class TrayIcon : IDisposable
 {
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ToolStripMenuItem _toggleOverlayItem;
+    private readonly Forms.ToolStripMenuItem _interactionItem;
+    private readonly Forms.ToolStripMenuItem _expandedItem;
 
     public event EventHandler? ToggleOverlayRequested;
+    public event EventHandler? ToggleInteractionRequested;
+    public event EventHandler? ToggleDisplayModeRequested;
     public event EventHandler? RefreshRequested;
     public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
@@ -23,6 +27,10 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(new Forms.ToolStripSeparator());
         _toggleOverlayItem = new Forms.ToolStripMenuItem("Hide overlay", null, (_, _) => ToggleOverlayRequested?.Invoke(this, EventArgs.Empty));
         menu.Items.Add(_toggleOverlayItem);
+        _interactionItem = new Forms.ToolStripMenuItem("Interaction mode", null, (_, _) => ToggleInteractionRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(_interactionItem);
+        _expandedItem = new Forms.ToolStripMenuItem("Expanded view", null, (_, _) => ToggleDisplayModeRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(_expandedItem);
         menu.Items.Add(new Forms.ToolStripMenuItem("Refresh now", null, (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Forms.ToolStripMenuItem("Settings...", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -44,6 +52,11 @@ public sealed class TrayIcon : IDisposable
 
     public void SetOverlayVisible(bool visible) =>
         _toggleOverlayItem.Text = visible ? "Hide overlay" : "Show overlay";
+
+    /// <summary>Checked = the overlay accepts mouse input; unchecked = click-through.</summary>
+    public void SetInteractionMode(bool interactive) => _interactionItem.Checked = interactive;
+
+    public void SetExpanded(bool expanded) => _expandedItem.Checked = expanded;
 
     /// <summary>Tooltip text is limited to 127 characters by Windows.</summary>
     public void SetToolTip(string text) =>

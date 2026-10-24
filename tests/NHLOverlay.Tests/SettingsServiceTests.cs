@@ -35,8 +35,11 @@ public sealed class SettingsServiceTests : IDisposable
             s.General.RefreshIntervalSeconds = 60;
             s.Appearance.BackgroundOpacity = 0.5;
             s.Appearance.ShowShotsOnGoal = true;
-            s.Window.Left = 100;
-            s.Window.Top = -1080; // monitor above the primary one
+            s.Appearance.DisplayMode = DisplayMode.Expanded;
+            s.Window.ScreenX = 100;
+            s.Window.ScreenY = -1080; // monitor above the primary one
+            s.Window.ClickThrough = true;
+            s.Hotkeys.ToggleOverlay = "Ctrl+Shift+F10";
         });
 
         var reloaded = CreateService();
@@ -45,8 +48,12 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(60, reloaded.Current.General.RefreshIntervalSeconds);
         Assert.Equal(0.5, reloaded.Current.Appearance.BackgroundOpacity);
         Assert.True(reloaded.Current.Appearance.ShowShotsOnGoal);
-        Assert.Equal(100, reloaded.Current.Window.Left);
-        Assert.Equal(-1080, reloaded.Current.Window.Top);
+        Assert.Equal(DisplayMode.Expanded, reloaded.Current.Appearance.DisplayMode);
+        Assert.Equal(100, reloaded.Current.Window.ScreenX);
+        Assert.Equal(-1080, reloaded.Current.Window.ScreenY);
+        Assert.True(reloaded.Current.Window.ClickThrough);
+        Assert.Equal("Ctrl+Shift+F10", reloaded.Current.Hotkeys.ToggleOverlay);
+        Assert.Equal("Ctrl+Alt+I", reloaded.Current.Hotkeys.ToggleInteraction);
         Assert.False(File.Exists(Path.Combine(_directory, SettingsService.FileName + ".tmp")));
     }
 
@@ -138,19 +145,57 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void Ui_scale_allows_large_monitors_up_to_300_percent()
+    {
+        WriteSettingsFile("""{ "appearance": { "uiScale": 2.5 } }""");
+        var service = CreateService();
+        service.Load();
+
+        Assert.Equal(2.5, service.Current.Appearance.UiScale);
+    }
+
+    [Fact]
+    public void Unknown_display_mode_resets_only_the_appearance_section()
+    {
+        WriteSettingsFile("""{ "appearance": { "displayMode": "Huge" }, "general": { "refreshIntervalSeconds": 60 } }""");
+        var service = CreateService();
+        service.Load();
+
+        Assert.Equal(DisplayMode.Compact, service.Current.Appearance.DisplayMode);
+        Assert.Equal(60, service.Current.General.RefreshIntervalSeconds);
+        Assert.Contains("appearance", service.LoadWarning);
+    }
+
+    [Theory]
+    [InlineData("Ctrl+Alt+N", "Ctrl+Alt+N")]
+    [InlineData("alt + ctrl + n", "Ctrl+Alt+N")]
+    [InlineData("", "")] // disabled
+    [InlineData("N", "Ctrl+Alt+N")] // invalid -> default
+    public void Hotkeys_are_validated(string stored, string expected)
+    {
+        WriteSettingsFile($$"""{ "hotkeys": { "toggleOverlay": "{{stored}}" } }""");
+        var service = CreateService();
+        service.Load();
+
+        Assert.Equal(expected, service.Current.Hotkeys.ToggleOverlay);
+    }
+
+    [Fact]
     public void Reset_restores_defaults()
     {
         var service = CreateService();
         service.Update(s =>
         {
             s.General.RefreshIntervalSeconds = 120;
-            s.Window.Left = 50;
+            s.Window.ScreenX = 50;
+            s.Hotkeys.ToggleOverlay = "";
         });
 
         service.ResetToDefaults();
 
         Assert.Equal(30, service.Current.General.RefreshIntervalSeconds);
-        Assert.Null(service.Current.Window.Left);
+        Assert.Null(service.Current.Window.ScreenX);
+        Assert.Equal("Ctrl+Alt+N", service.Current.Hotkeys.ToggleOverlay);
     }
 
     public void Dispose()

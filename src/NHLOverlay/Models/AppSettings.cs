@@ -16,6 +16,8 @@ public sealed class AppSettings
 
     public WindowSettings Window { get; set; } = new();
 
+    public HotkeySettings Hotkeys { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -23,6 +25,7 @@ public sealed class AppSettings
         General = (General ?? new()).Normalize();
         Appearance = (Appearance ?? new()).Normalize();
         Window = (Window ?? new()).Normalize();
+        Hotkeys = (Hotkeys ?? new()).Normalize();
         return this;
     }
 }
@@ -46,13 +49,29 @@ public sealed class GeneralSettings
     }
 }
 
+public enum DisplayMode
+{
+    /// <summary>One line per game.</summary>
+    Compact,
+
+    /// <summary>Logos, team names, shots and every goal; suited to a large or vertical monitor.</summary>
+    Expanded,
+}
+
 public sealed class AppearanceSettings
 {
+    public const double MinUiScale = 0.75;
+    public const double MaxUiScale = 3.0;
+
+    public DisplayMode DisplayMode { get; set; } = DisplayMode.Compact;
+
     /// <summary>Opacity of the overlay background (text stays fully opaque). 0.0 - 1.0.</summary>
     public double BackgroundOpacity { get; set; } = 0.85;
 
-    /// <summary>Overall UI scale factor. 0.75 - 2.0.</summary>
+    /// <summary>Overall UI scale factor on top of Windows display scaling.</summary>
     public double UiScale { get; set; } = 1.0;
+
+    public bool ShowTeamLogos { get; set; } = true;
 
     public bool ShowGameClock { get; set; } = true;
 
@@ -60,8 +79,9 @@ public sealed class AppearanceSettings
 
     internal AppearanceSettings Normalize()
     {
+        if (!Enum.IsDefined(DisplayMode)) DisplayMode = DisplayMode.Compact;
         BackgroundOpacity = ClampOrDefault(BackgroundOpacity, 0.0, 1.0, 0.85);
-        UiScale = ClampOrDefault(UiScale, 0.75, 2.0, 1.0);
+        UiScale = ClampOrDefault(UiScale, MinUiScale, MaxUiScale, 1.0);
         return this;
     }
 
@@ -71,18 +91,59 @@ public sealed class AppearanceSettings
 
 public sealed class WindowSettings
 {
-    /// <summary>Last overlay position in WPF device-independent units. Null = default placement.</summary>
-    public double? Left { get; set; }
+    public const double MinWidth = 200;
+    public const double MaxWidth = 1200;
 
-    public double? Top { get; set; }
+    /// <summary>
+    /// Top-left corner in physical screen pixels (virtual-desktop coordinates). Pixels rather than WPF units
+    /// because monitors can have different DPI scaling. Null = default placement.
+    /// </summary>
+    public int? ScreenX { get; set; }
 
+    public int? ScreenY { get; set; }
+
+    /// <summary>Content width in WPF units before <see cref="AppearanceSettings.UiScale"/> is applied.</summary>
     public double Width { get; set; } = 300;
+
+    public bool AlwaysOnTop { get; set; } = true;
+
+    /// <summary>When true, mouse input passes through the overlay to the game underneath.</summary>
+    public bool ClickThrough { get; set; }
+
+    /// <summary>Prevents dragging and resizing.</summary>
+    public bool LockPosition { get; set; }
+
+    public bool SnapToEdges { get; set; } = true;
 
     internal WindowSettings Normalize()
     {
-        if (Left is { } l && !double.IsFinite(l)) Left = null;
-        if (Top is { } t && !double.IsFinite(t)) Top = null;
-        Width = AppearanceSettings.ClampOrDefault(Width, 200, 1200, 300);
+        Width = AppearanceSettings.ClampOrDefault(Width, MinWidth, MaxWidth, 300);
         return this;
+    }
+}
+
+public sealed class HotkeySettings
+{
+    public const string DefaultToggleOverlay = "Ctrl+Alt+N";
+    public const string DefaultToggleInteraction = "Ctrl+Alt+I";
+
+    /// <summary>Show/hide the overlay. Empty string disables the hotkey.</summary>
+    public string ToggleOverlay { get; set; } = DefaultToggleOverlay;
+
+    /// <summary>Switch between click-through and interaction mode. Empty string disables the hotkey.</summary>
+    public string ToggleInteraction { get; set; } = DefaultToggleInteraction;
+
+    internal HotkeySettings Normalize()
+    {
+        ToggleOverlay = NormalizeGesture(ToggleOverlay, DefaultToggleOverlay);
+        ToggleInteraction = NormalizeGesture(ToggleInteraction, DefaultToggleInteraction);
+        return this;
+    }
+
+    private static string NormalizeGesture(string? value, string fallback)
+    {
+        if (value is null) return fallback;
+        if (value.Trim().Length == 0) return "";
+        return HotkeyGesture.TryParse(value, out var gesture) ? gesture.ToString() : fallback;
     }
 }

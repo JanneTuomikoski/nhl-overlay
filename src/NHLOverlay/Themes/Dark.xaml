@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:models="clr-namespace:NHLOverlay.Models">
 
     <!-- Palette -->
     <Color x:Key="OverlayBackgroundColor">#0E1319</Color>
@@ -307,6 +308,113 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Slim vertical scrollbar (apply via ScrollViewer.Resources) -->
+    <Style x:Key="SlimScrollBarThumb" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Bar" CornerRadius="2" Background="#40FFFFFF" />
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="#80FFFFFF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SlimScrollBar" TargetType="ScrollBar">
+        <Setter Property="Width" Value="5" />
+        <Setter Property="MinWidth" Value="5" />
+        <Setter Property="Margin" Value="0,2,2,2" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Track x:Name="PART_Track" IsDirectionReversed="True">
+                        <Track.DecreaseRepeatButton>
+                            <RepeatButton Style="{StaticResource SliderTrackButton}" Command="ScrollBar.PageUpCommand" />
+                        </Track.DecreaseRepeatButton>
+                        <Track.IncreaseRepeatButton>
+                            <RepeatButton Style="{StaticResource SliderTrackButton}" Command="ScrollBar.PageDownCommand" />
+                        </Track.IncreaseRepeatButton>
+                        <Track.Thumb>
+                            <Thumb Style="{StaticResource SlimScrollBarThumb}" />
+                        </Track.Thumb>
+                    </Track>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Game card text. Bound to GameCardViewModel. -->
+    <Style x:Key="GameStatusText" TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="Foreground" Value="{StaticResource StatusScheduledBrush}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Live}">
+                <Setter Property="Foreground" Value="{StaticResource StatusLiveBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Intermission}">
+                <Setter Property="Foreground" Value="{StaticResource StatusIntermissionBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Overtime}">
+                <Setter Property="Foreground" Value="{StaticResource StatusOvertimeBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Shootout}">
+                <Setter Property="Foreground" Value="{StaticResource StatusOvertimeBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Final}">
+                <Setter Property="Foreground" Value="{StaticResource StatusFinalBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Postponed}">
+                <Setter Property="Foreground" Value="{StaticResource StatusInactiveBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Suspended}">
+                <Setter Property="Foreground" Value="{StaticResource StatusInactiveBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Cancelled}">
+                <Setter Property="Foreground" Value="{StaticResource StatusInactiveBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Team name/score text; the trailing team is dimmed so the leader stands out at a glance. -->
+    <Style x:Key="TeamTextBase" TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+
+    <Style x:Key="AwayTeamText" TargetType="TextBlock" BasedOn="{StaticResource TeamTextBase}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding HomeLeading}" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="HomeTeamText" TargetType="TextBlock" BasedOn="{StaticResource TeamTextBase}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding AwayLeading}" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="TeamLogo" TargetType="Image">
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding ShowLogos}" Value="False">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Text helpers -->

@@ -4,108 +4,75 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:NHLOverlay.ViewModels"
-             xmlns:models="clr-namespace:NHLOverlay.Models"
+             xmlns:controls="clr-namespace:NHLOverlay.Controls"
              mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}"
-             ToolTip="{Binding ToolTip}">
-    <UserControl.Resources>
-        <Style x:Key="TeamText" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-        </Style>
-        <Style x:Key="ScoreText" TargetType="TextBlock" BasedOn="{StaticResource TeamText}">
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="MinWidth" Value="16" />
-            <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
-        </Style>
-    </UserControl.Resources>
+             d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
+    <!-- Clicking the card (interaction mode only) opens its goal list. -->
+    <Border Padding="10,4" Background="Transparent" Cursor="Hand" ToolTip="{Binding ToolTip}">
+        <Border.InputBindings>
+            <MouseBinding Gesture="LeftClick" Command="{Binding ToggleDetailsCommand}" />
+        </Border.InputBindings>
+        <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" MinWidth="34" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" MinWidth="34" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-    <!-- A DataTemplate is used so triggers can restyle individual named elements. -->
-    <ContentControl Content="{Binding}" Focusable="False">
-        <ContentControl.ContentTemplate>
-            <DataTemplate DataType="{x:Type vm:GameCardViewModel}">
-                <Border Padding="10,5" Background="Transparent">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" MinWidth="34" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" MinWidth="34" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <Image Grid.Column="0" Source="{Binding AwayLogo}" Width="18" Height="18" Margin="0,0,6,0"
+                       Style="{StaticResource TeamLogo}" />
+                <TextBlock Grid.Column="1" Text="{Binding AwayAbbrev}" FontSize="13" Style="{StaticResource AwayTeamText}" />
+                <TextBlock Grid.Column="2" Text="{Binding AwayScore}" FontSize="14" FontWeight="Bold" MinWidth="14"
+                           TextAlignment="Right" Margin="4,0,0,0" Style="{StaticResource AwayTeamText}" />
+                <TextBlock x:Name="Separator" Grid.Column="3" Margin="6,0" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="@" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasScore}" Value="True">
+                                    <Setter Property="Text" Value="-" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Grid.Column="4" Text="{Binding HomeScore}" FontSize="14" FontWeight="Bold" MinWidth="14"
+                           Margin="0,0,4,0" Style="{StaticResource HomeTeamText}" />
+                <TextBlock Grid.Column="5" Text="{Binding HomeAbbrev}" FontSize="13" Style="{StaticResource HomeTeamText}" />
+                <Image Grid.Column="6" Source="{Binding HomeLogo}" Width="18" Height="18" Margin="2,0,0,0"
+                       Style="{StaticResource TeamLogo}" />
 
-                        <TextBlock x:Name="AwayAbbrev" Grid.Column="0" Text="{Binding AwayAbbrev}" Style="{StaticResource TeamText}" />
-                        <TextBlock x:Name="AwayScore" Grid.Column="1" Text="{Binding AwayScore}" Style="{StaticResource ScoreText}"
-                                   TextAlignment="Right" Margin="4,0,0,0" />
-                        <TextBlock x:Name="Separator" Grid.Column="2" Text="@" Margin="6,0" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" />
-                        <TextBlock x:Name="HomeScore" Grid.Column="3" Text="{Binding HomeScore}" Style="{StaticResource ScoreText}"
-                                   TextAlignment="Left" Margin="0,0,4,0" />
-                        <TextBlock x:Name="HomeAbbrev" Grid.Column="4" Text="{Binding HomeAbbrev}" Style="{StaticResource TeamText}" />
+                <TextBlock Grid.Column="8" Text="{Binding StatusText}" Margin="12,0,0,0" VerticalAlignment="Center"
+                           FontSize="11.5" Style="{StaticResource GameStatusText}" />
+            </Grid>
 
-                        <TextBlock x:Name="Status" Grid.Column="6" Text="{Binding StatusText}" Margin="12,0,0,0"
-                                   VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold"
-                                   Typography.NumeralAlignment="Tabular"
-                                   Foreground="{StaticResource StatusScheduledBrush}" />
+            <TextBlock Text="{Binding ShotsText}" FontSize="10.5" Margin="0,1,0,0" Foreground="{StaticResource TextSecondaryBrush}"
+                       Visibility="{Binding ShowShots, Converter={StaticResource BoolToVisibility}}" />
 
-                        <TextBlock x:Name="Shots" Grid.Row="1" Grid.ColumnSpan="7" Text="{Binding ShotsText}" FontSize="10.5"
-                                   Margin="0,1,0,0" Foreground="{StaticResource TextSecondaryBrush}" Visibility="Collapsed" />
-                    </Grid>
-                </Border>
-
-                <DataTemplate.Triggers>
-                    <DataTrigger Binding="{Binding HasScore}" Value="True">
-                        <Setter TargetName="Separator" Property="Text" Value="-" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding ShowShots}" Value="True">
-                        <Setter TargetName="Shots" Property="Visibility" Value="Visible" />
-                    </DataTrigger>
-
-                    <!-- Dim the trailing team so the leader stands out at a glance. -->
-                    <DataTrigger Binding="{Binding HomeLeading}" Value="True">
-                        <Setter TargetName="AwayAbbrev" Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-                        <Setter TargetName="AwayScore" Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding AwayLeading}" Value="True">
-                        <Setter TargetName="HomeAbbrev" Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-                        <Setter TargetName="HomeScore" Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-                    </DataTrigger>
-
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Live}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusLiveBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Intermission}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusIntermissionBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Overtime}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusOvertimeBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Shootout}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusOvertimeBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Final}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusFinalBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Postponed}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusInactiveBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Suspended}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusInactiveBrush}" />
-                    </DataTrigger>
-                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:GameStatus.Cancelled}">
-                        <Setter TargetName="Status" Property="Foreground" Value="{StaticResource StatusInactiveBrush}" />
-                    </DataTrigger>
-                </DataTemplate.Triggers>
-            </DataTemplate>
-        </ContentControl.ContentTemplate>
-    </ContentControl>
+            <controls:GoalList FontSize="11" Margin="0,4,0,3">
+                <controls:GoalList.Style>
+                    <Style TargetType="controls:GoalList">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsDetailsOpen}" Value="True" />
+                                    <Condition Binding="{Binding HasGoals}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </controls:GoalList.Style>
+            </controls:GoalList>
+        </StackPanel>
+    </Border>
 </UserControl>

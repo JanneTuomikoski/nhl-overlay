@@ -8,7 +8,7 @@ public class ScorePollingServiceTests
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
 
-    // 04:00 Eastern on Oct 25: both Oct 24 (last night) and Oct 25 are relevant.
+    // 10:00 Sunday in Helsinki: today's slate is Sunday Oct 25, last night was Saturday Oct 24.
     private static readonly DateTimeOffset Morning = new(2026, 10, 25, 8, 0, 0, TimeSpan.Zero);
     private static readonly DateOnly Yesterday = new(2026, 10, 24);
     private static readonly DateOnly Today = new(2026, 10, 25);
@@ -17,10 +17,10 @@ public class ScorePollingServiceTests
     private readonly GameStateService _state = new();
     private readonly ManualTimeProvider _time = new(Morning);
 
-    private ScorePollingService CreateService() => new(_api, _state, () => Interval, _time, Zones.Eastern);
+    private ScorePollingService CreateService() => new(_api, _state, () => Interval, _time, Zones.Helsinki, Zones.Eastern);
 
     [Fact]
-    public async Task Publishes_games_from_all_relevant_dates()
+    public async Task Loads_yesterday_and_today_and_shows_today_as_the_main_view()
     {
         _api.Games[Yesterday] = [Game(1, GameStatus.Final, "OFF", Morning.AddHours(-10), 3, 2)];
         _api.Games[Today] = [Game(2, GameStatus.Scheduled, "FUT", Morning.AddHours(15))];
@@ -29,10 +29,29 @@ public class ScorePollingServiceTests
         await service.PollOnceAsync(CancellationToken.None);
 
         var snapshot = _state.Current;
-        Assert.Equal([1L, 2L], snapshot.Games.Select(g => g.Id).Order());
+        Assert.Equal(Today, snapshot.TodayNhlDate);
+        Assert.Equal([2L], snapshot.Games.Select(g => g.Id));
+        Assert.Equal([1L], snapshot.GamesByDate[Yesterday].Select(g => g.Id));
         Assert.True(snapshot.HasData);
         Assert.False(snapshot.IsStale);
         Assert.Equal(Morning, snapshot.LastSuccessUtc);
+    }
+
+    [Fact]
+    public async Task Today_view_keeps_last_nights_unfinished_games()
+    {
+        _api.Games[Yesterday] =
+        [
+            Game(1, GameStatus.Final, "OFF", Morning.AddHours(-10), 3, 2),
+            Game(2, GameStatus.Overtime, "LIVE", Morning.AddHours(-3), 2, 2),
+            Game(3, GameStatus.Final, "FINAL", Morning.AddHours(-3), 4, 1),
+        ];
+        _api.Games[Today] = [Game(4, GameStatus.Scheduled, "FUT", Morning.AddHours(15))];
+        using var service = CreateService();
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Equal([2L, 3L, 4L], _state.Current.Games.Select(g => g.Id).Order());
     }
 
     [Fact]
@@ -60,6 +79,36 @@ public class ScorePollingServiceTests
         await service.PollOnceAsync(CancellationToken.None);
 
         Assert.Equal(2, _api.Requests.Count(d => d == Yesterday));
+    }
+
+    [Fact]
+    public async Task Loads_a_viewed_date_on_demand_and_drops_it_afterwards()
+    {
+        var older = new DateOnly(2026, 10, 20);
+        _api.Games[older] = [Game(9, GameStatus.Final, "OFF", Morning.AddDays(-5), 1, 0)];
+        using var service = CreateService();
+
+        service.SetViewedDate(older);
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Equal([9L], _state.Current.GamesByDate[older].Select(g => g.Id));
+
+        service.SetViewedDate(null);
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.False(_state.Current.GamesByDate.ContainsKey(older));
+        Assert.Equal(1, _api.Requests.Count(d => d == older));
+    }
+
+    [Fact]
+    public async Task Rolls_over_to_the_next_slate_in_the_morning()
+    {
+        using var service = CreateService();
+        _time.Now = new DateTimeOffset(2026, 10, 25, 5, 59, 0, TimeSpan.Zero); // 07:59 in Helsinki
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(Yesterday, _state.Current.TodayNhlDate);
+
+        _time.Now = new DateTimeOffset(2026, 10, 25, 6, 0, 0, TimeSpan.Zero); // 08:00
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(Today, _state.Current.TodayNhlDate);
     }
 
     [Fact]
@@ -125,21 +174,4 @@ public class ScorePollingServiceTests
     [Fact]
     public void Polls_at_the_interval_when_a_game_is_past_its_start_but_not_live() =>
         Assert.Equal(Interval, ScorePollingService.NextDelay([Game(2, GameStatus.Scheduled, "FUT", Morning.AddMinutes(-5))], Morning, Interval));
-
-    [Fact]
-    public async Task Keeps_an_unfinished_game_from_yesterday_after_the_cutoff()
-    {
-        _api.Games[Yesterday] = [Game(1, GameStatus.Overtime, "LIVE", Morning.AddHours(-5), 2, 2)];
-        using var service = CreateService();
-        await service.PollOnceAsync(CancellationToken.None);
-
-        _time.Now = new DateTimeOffset(2026, 10, 25, 17, 0, 0, TimeSpan.Zero); // 13:00 Eastern, past the cutoff
-        await service.PollOnceAsync(CancellationToken.None);
-        Assert.Contains(_state.Current.Games, g => g.Id == 1);
-
-        _api.Games[Yesterday] = [Game(1, GameStatus.Final, "OFF", Morning.AddHours(-5), 3, 2)];
-        await service.PollOnceAsync(CancellationToken.None); // fetched as settled...
-        await service.PollOnceAsync(CancellationToken.None); // ...then dropped
-        Assert.DoesNotContain(_state.Current.Games, g => g.Id == 1);
-    }
 }

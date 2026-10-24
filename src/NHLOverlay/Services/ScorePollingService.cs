@@ -24,6 +24,7 @@ public sealed class ScorePollingService : IDisposable
     private readonly GameStateService _state;
     private readonly Func<TimeSpan> _interval;
     private readonly TimeProvider _time;
+    private readonly TimeZoneInfo _localZone;
     private readonly TimeZoneInfo? _eastern;
     private readonly SemaphoreSlim _wake = new(0, 1);
     private readonly Dictionary<DateOnly, DateCache> _cache = [];
@@ -34,16 +35,35 @@ public sealed class ScorePollingService : IDisposable
     private DateTimeOffset? _lastSuccessUtc;
     private string? _lastError;
     private DateTimeOffset? _lastErrorUtc;
+    private int _viewedDayNumber; // DateOnly.DayNumber of an extra date the user is viewing; 0 = none
 
     private sealed record DateCache(IReadOnlyList<HockeyGame> Games, bool IsSettled);
 
-    public ScorePollingService(INhlApiClient api, GameStateService state, Func<TimeSpan> interval, TimeProvider time, TimeZoneInfo? eastern = null)
+    public ScorePollingService(
+        INhlApiClient api,
+        GameStateService state,
+        Func<TimeSpan> interval,
+        TimeProvider time,
+        TimeZoneInfo? localZone = null,
+        TimeZoneInfo? eastern = null)
     {
         _api = api;
         _state = state;
         _interval = interval;
         _time = time;
+        _localZone = localZone ?? TimeZoneInfo.Local;
         _eastern = eastern;
+    }
+
+    /// <summary>
+    /// Also load <paramref name="date"/> (e.g. when the user browses back a few days). Null clears it.
+    /// Yesterday and today are always loaded, so this is only needed for other dates.
+    /// </summary>
+    public void SetViewedDate(DateOnly? date)
+    {
+        var dayNumber = date?.DayNumber ?? 0;
+        if (Interlocked.Exchange(ref _viewedDayNumber, dayNumber) != dayNumber && date is not null)
+            RequestRefresh();
     }
 
     public void Start()
@@ -101,7 +121,8 @@ public sealed class ScorePollingService : IDisposable
     internal async Task<TimeSpan> PollOnceAsync(CancellationToken ct)
     {
         var now = _time.GetUtcNow();
-        var dates = SelectDates(now);
+        var today = NhlCalendar.GetTodayNhlDate(now, _localZone, _eastern);
+        var dates = SelectDates(today);
         foreach (var obsolete in _cache.Keys.Where(d => !dates.Contains(d)).ToList())
             _cache.Remove(obsolete);
 
@@ -126,17 +147,15 @@ public sealed class ScorePollingService : IDisposable
             }
         }
 
-        var games = dates.Where(_cache.ContainsKey)
-                         .SelectMany(d => _cache[d].Games)
-                         .DistinctBy(g => g.Id)
-                         .ToList();
+        var byDate = dates.Where(_cache.ContainsKey).ToDictionary(d => d, d => _cache[d].Games);
+        var todayView = BuildTodayView(today, byDate);
 
         TimeSpan delay;
         if (error is null)
         {
             _consecutiveFailures = 0;
             _lastSuccessUtc = now;
-            delay = NextDelay(games, now, _interval());
+            delay = NextDelay(byDate.Values.SelectMany(g => g).ToList(), now, _interval());
         }
         else
         {
@@ -148,8 +167,10 @@ public sealed class ScorePollingService : IDisposable
 
         _state.Publish(new ScoreboardSnapshot
         {
-            Games = games,
-            HasData = _cache.Count > 0,
+            TodayNhlDate = today,
+            Games = todayView,
+            GamesByDate = byDate,
+            HasData = byDate.ContainsKey(today),
             IsStale = error is not null,
             LastSuccessUtc = _lastSuccessUtc,
             LastError = _lastError,
@@ -159,22 +180,29 @@ public sealed class ScorePollingService : IDisposable
         return delay;
     }
 
-    /// <summary>
-    /// The calendar-relevant NHL dates, plus a recent date that still has unfinished games
-    /// (e.g. a long overtime game running past the cutoff), so no in-progress game disappears.
-    /// </summary>
-    internal List<DateOnly> SelectDates(DateTimeOffset now)
+    /// <summary>Yesterday and today (NHL dates), plus the date the user is currently viewing, if any.</summary>
+    internal List<DateOnly> SelectDates(DateOnly today)
     {
-        var dates = NhlCalendar.GetRelevantDates(now, _eastern).ToList();
-        var earliest = dates[0].AddDays(-1);
-        foreach (var (date, cache) in _cache)
-        {
-            if (!dates.Contains(date) && date >= earliest && !cache.IsSettled)
-                dates.Add(date);
-        }
-
+        var dates = new List<DateOnly> { today.AddDays(-1), today };
+        var viewed = Volatile.Read(ref _viewedDayNumber);
+        if (viewed != 0 && !dates.Contains(DateOnly.FromDayNumber(viewed)))
+            dates.Add(DateOnly.FromDayNumber(viewed));
         dates.Sort();
         return dates;
+    }
+
+    /// <summary>
+    /// Today's games plus yesterday's games that are still being played or not yet official, so a late
+    /// game stays on screen through the morning rollover instead of vanishing mid-game.
+    /// </summary>
+    internal static IReadOnlyList<HockeyGame> BuildTodayView(DateOnly today, IReadOnlyDictionary<DateOnly, IReadOnlyList<HockeyGame>> byDate)
+    {
+        var view = new List<HockeyGame>();
+        if (byDate.TryGetValue(today.AddDays(-1), out var yesterday))
+            view.AddRange(yesterday.Where(g => g.Status.IsInProgress() || (g.Status.IsFinal() && !IsOfficial(g))));
+        if (byDate.TryGetValue(today, out var games))
+            view.AddRange(games);
+        return view.DistinctBy(g => g.Id).ToList();
     }
 
     /// <summary>A date is settled when every game is official (OFF) or postponed/suspended/cancelled.</summary>

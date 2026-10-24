@@ -34,13 +34,17 @@ public sealed class SettingsService
 
     private readonly Lock _gate = new();
 
-    public SettingsService(string settingsDirectory, bool isPortable)
+    public SettingsService(string settingsDirectory, bool isPortable, string? cacheDirectory = null)
     {
         SettingsDirectory = settingsDirectory;
         IsPortable = isPortable;
+        CacheDirectory = cacheDirectory ?? Path.Combine(settingsDirectory, "cache");
     }
 
     public string SettingsDirectory { get; }
+
+    /// <summary>Re-creatable downloads such as team logos (%LocalAppData% unless portable).</summary>
+    public string CacheDirectory { get; }
 
     public string SettingsPath => Path.Combine(SettingsDirectory, FileName);
 
@@ -63,7 +67,8 @@ public sealed class SettingsService
             return new SettingsService(exeDirectory, isPortable: true);
 
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        return new SettingsService(Path.Combine(appData, "NHLOverlay"), isPortable: false);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return new SettingsService(Path.Combine(appData, "NHLOverlay"), isPortable: false, Path.Combine(localAppData, "NHLOverlay", "cache"));
     }
 
     public void Load()
@@ -114,6 +119,7 @@ public sealed class SettingsService
             General = ReadSection<GeneralSettings>(root, "general", brokenSections),
             Appearance = ReadSection<AppearanceSettings>(root, "appearance", brokenSections),
             Window = ReadSection<WindowSettings>(root, "window", brokenSections),
+            Hotkeys = ReadSection<HotkeySettings>(root, "hotkeys", brokenSections),
         };
         return settings.Normalize();
     }
@@ -155,6 +161,7 @@ public sealed class SettingsService
         s.General = defaults.General;
         s.Appearance = defaults.Appearance;
         s.Window = defaults.Window;
+        s.Hotkeys = defaults.Hotkeys;
     });
 
     public static AppSettings Clone(AppSettings settings) =>
