@@ -27,6 +27,9 @@ public sealed record CardContext(
     /// <summary>Spoiler shield: the game's score and details must stay hidden.</summary>
     public Func<HockeyGame, bool> IsShielded { get; init; } = _ => false;
 
+    /// <summary>Shutout watch and milestone lines for a game.</summary>
+    public Func<HockeyGame, IReadOnlyList<string>> WatchLines { get; init; } = _ => [];
+
     public AppearanceSettings Appearance => Settings.Appearance;
 
     /// <summary>Hat-Trick Watch players for a game, honoring the enable, scope and spoiler settings.</summary>
@@ -88,6 +91,7 @@ public sealed class GameCardViewModel : ObservableObject
     private string _hatTrickTextLong = "";
     private string _countryText = "";
     private string _countryTextLong = "";
+    private string _watchText = "";
     private bool _isShielded;
 
     /// <param name="id">NHL game id.</param>
@@ -199,6 +203,18 @@ public sealed class GameCardViewModel : ObservableObject
 
     public bool HasCountryTextLong => CountryTextLong.Length > 0;
 
+    /// <summary>"SHUTOUT WATCH  J. Saros (NSH)", "C. McDavid 1 goal from 500"; one per line.</summary>
+    public string WatchText
+    {
+        get => _watchText;
+        private set
+        {
+            if (SetProperty(ref _watchText, value)) OnPropertyChanged(nameof(HasWatchText));
+        }
+    }
+
+    public bool HasWatchText => WatchText.Length > 0;
+
     public string AwayScore { get => _awayScore; private set => SetProperty(ref _awayScore, value); }
 
     public string HomeScore { get => _homeScore; private set => SetProperty(ref _homeScore, value); }
@@ -268,6 +284,7 @@ public sealed class GameCardViewModel : ObservableObject
         ShowFavoriteTint = IsFavorite && context.Settings.Teams.Highlight == FavoriteHighlight.BarAndTint;
         UpdateHatTrick(context.HatTricksFor(game), context.Settings.HatTrick);
         UpdateCountry(context.Settings.CountryWatch.ShowOnCards && !IsShielded ? context.WatchedPlayers(game) : []);
+        WatchText = IsShielded ? "" : string.Join(Environment.NewLine, context.WatchLines(game));
         _gameCenterUrl = game.GameCenterUrl;
 
         HasScore = game.HasScore && !game.Status.IsUpcoming() && !game.Status.IsInactive() && !IsShielded;

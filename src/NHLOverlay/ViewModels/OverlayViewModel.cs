@@ -53,6 +53,7 @@ public sealed class OverlayViewModel : ObservableObject
     private readonly RecapService _recaps;
     private readonly Action<DateOnly?> _requestDate;
     private readonly Action<long> _openFocus;
+    private readonly WatchService _watches;
     private readonly DispatcherTimer _returnToToday;
     private readonly Dictionary<long, GameCardViewModel> _cards = [];
     private ScoreboardSnapshot _snapshot = ScoreboardSnapshot.Empty;
@@ -90,11 +91,14 @@ public sealed class OverlayViewModel : ObservableObject
         RecapService recaps,
         StandingsViewModel standings,
         ScheduleService schedules,
+        WatchService watches,
         Action<DateOnly?> requestDate,
         Action<long> openFocus,
         Dispatcher dispatcher)
     {
         _openFocus = openFocus;
+        _watches = watches;
+        watches.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
         Standings = standings;
         schedules.Changed += (_, _) => dispatcher.InvokeAsync(() => Apply(_snapshot));
         ToggleStandingsCommand = new RelayCommand(() =>
@@ -293,6 +297,7 @@ public sealed class OverlayViewModel : ObservableObject
         {
             WatchedPlayers = Watched,
             IsShielded = _spoilers.IsShielded,
+            WatchLines = _watches.CardLines,
         };
 
         var viewed = ViewedDate();

@@ -506,6 +506,12 @@
         </Style.Triggers>
     </Style>
 
+    <Style x:Key="WatchText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#7EE0B5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
     <Style x:Key="CountryText" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource CountryBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />

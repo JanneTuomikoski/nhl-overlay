@@ -148,7 +148,7 @@ public sealed class NotificationService
     internal static AlertSound SoundFor(GameEventKind kind) => kind switch
     {
         GameEventKind.Goal => AlertSound.Horn,
-        GameEventKind.HatTrickCompleted => AlertSound.Fanfare,
+        GameEventKind.HatTrickCompleted or GameEventKind.Milestone => AlertSound.Fanfare,
         _ => AlertSound.Chime,
     };
 
@@ -171,6 +171,9 @@ public sealed class NotificationService
             GameEventKind.CloseGame => ("CLOSE GAME  EDM 3-2 TOR", "3RD 08:41 · one-goal game", "Close game. Oilers lead 3 to 2. About 8 minutes left."),
             GameEventKind.WorthWatching => ("WORTH WATCHING  EDM 3-3 TOR", "tied 3-3 · 3RD 04:12 · comeback from 2 down", "Worth watching: Oilers versus Maple Leafs. Tied 3-3, comeback from 2 down."),
             GameEventKind.CountryPlayerPoint => ("FIN GOAL  K. Kapanen · EDM 3-2 TOR", "Kasperi Kapanen (EDM) · 1+1 tonight", "Finnish goal! Kasperi Kapanen scores for the Oilers."),
+            GameEventKind.Shutout => ("SHUTOUT WATCH  EDM 3-0 TOR", "S. Skinner, 27 saves (EDM) · 06:12 left", "Shutout watch: S. Skinner for the Oilers."),
+            GameEventKind.Milestone => ("MILESTONE  Connor McDavid", "500th career goal · EDM 3-2 TOR", "Milestone! Connor McDavid, 500th career goal."),
+            GameEventKind.PointStreak => ("POINT STREAK  Connor McDavid", "9 games in a row · EDM 3-2 TOR", "Connor McDavid extends his point streak to 9 games."),
             _ => ("FINAL  EDM 4-2 TOR", "Oilers win 4-2", "Final: Oilers beat the Maple Leafs 4 to 2."),
         };
         return new GameEvent(kind, $"test:{kind}", game, title, body, speech);

@@ -128,6 +128,7 @@ public sealed class SettingsService
             Spoilers = ReadSection<SpoilerSettings>(root, "spoilers", brokenSections),
             Recap = ReadSection<RecapSettings>(root, "recap", brokenSections),
             Focus = ReadSection<FocusSettings>(root, "focus", brokenSections),
+            PlayerWatch = ReadSection<PlayerWatchSettings>(root, "playerWatch", brokenSections),
         };
         return settings.Normalize();
     }

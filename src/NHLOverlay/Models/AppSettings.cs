@@ -34,6 +34,8 @@ public sealed class AppSettings
 
     public FocusSettings Focus { get; set; } = new();
 
+    public PlayerWatchSettings PlayerWatch { get; set; } = new();
+
     /// <summary>Clamps out-of-range values and replaces nulls with defaults.</summary>
     public AppSettings Normalize()
     {
@@ -50,6 +52,7 @@ public sealed class AppSettings
         Spoilers = (Spoilers ?? new()).Normalize();
         Recap = (Recap ?? new()).Normalize();
         Focus = (Focus ?? new()).Normalize();
+        PlayerWatch = (PlayerWatch ?? new()).Normalize();
         return this;
     }
 

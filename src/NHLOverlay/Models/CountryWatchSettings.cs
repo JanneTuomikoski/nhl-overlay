@@ -21,6 +21,37 @@ public sealed class CountryWatchSettings
     }
 }
 
+public enum PlayerWatchScope
+{
+    /// <summary>Players of favorite teams and watched countries (few requests).</summary>
+    FavoritesAndCountries,
+
+    /// <summary>Every player who scores (one profile request per scorer per day).</summary>
+    AllPlayers,
+}
+
+/// <summary>Shutouts, career milestones and point streaks.</summary>
+public sealed class PlayerWatchSettings
+{
+    public bool ShutoutWatch { get; set; } = true;
+
+    public bool Milestones { get; set; } = true;
+
+    public bool PointStreaks { get; set; } = true;
+
+    /// <summary>A streak is announced when a point tonight makes it at least this many games.</summary>
+    public int MinStreak { get; set; } = 5;
+
+    public PlayerWatchScope Scope { get; set; } = PlayerWatchScope.FavoritesAndCountries;
+
+    internal PlayerWatchSettings Normalize()
+    {
+        MinStreak = Math.Clamp(MinStreak, 3, 20);
+        Scope = AppSettings.DefinedOr(Scope, PlayerWatchScope.FavoritesAndCountries);
+        return this;
+    }
+}
+
 /// <summary>Display names for the hockey countries offered in settings.</summary>
 public static class HockeyCountries
 {

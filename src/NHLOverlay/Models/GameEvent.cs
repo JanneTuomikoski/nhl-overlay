@@ -12,6 +12,9 @@ public enum GameEventKind
     GameFinal,
     WorthWatching,
     CountryPlayerPoint,
+    Shutout,
+    Milestone,
+    PointStreak,
 }
 
 /// <summary>

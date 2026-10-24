@@ -23,6 +23,7 @@ public partial class App : Application
     private BoxscoreService? _boxscores;
     private ScheduleService? _schedules;
     private FocusGameService? _focus;
+    private PlayerStatsService? _playerStats;
     private SpoilerService? _spoilers;
     private FocusWindow? _focusWindow;
     private ScorePollingService? _polling;
@@ -102,8 +103,11 @@ public partial class App : Application
         var standings = new StandingsViewModel(_teams, _schedules, _logos);
         _focus = new FocusGameService(_api, () => TimeSpan.FromSeconds(_settings.Current.General.RefreshIntervalSeconds));
         _spoilers = spoilers;
+        _playerStats = new PlayerStatsService(_api, _settings.CacheDirectory, TimeProvider.System);
+        _playerStats.Start();
+        var watches = new WatchService(_state, _settings, _playerStats, _boxscores, _rosters, _notifications.Deliver, Dispatcher);
         var overlayViewModel = new OverlayViewModel(
-            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, spoilers, recaps, standings, _schedules,
+            _state, _settings, _logos, _teams, _runtime, _toasts, countryWatch, spoilers, recaps, standings, _schedules, watches,
             _polling.SetViewedDate, ShowFocus, Dispatcher);
         _overlay = new OverlayWindow(overlayViewModel, _settings, _runtime);
         _overlay.SettingsRequested += (_, _) => ShowSettings();
@@ -265,6 +269,7 @@ public partial class App : Application
         _boxscores?.Dispose();
         _schedules?.Dispose();
         _focus?.Dispose();
+        _playerStats?.Dispose();
         _api?.Dispose();
         _logos?.Dispose();
         _hotkeys?.Dispose();

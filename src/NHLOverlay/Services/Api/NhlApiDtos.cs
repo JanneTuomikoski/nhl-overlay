@@ -71,6 +71,41 @@ internal sealed class GameOutcomeDto
     public string? LastPeriodType { get; set; }
 }
 
+internal sealed class PlayerLandingDto
+{
+    public long PlayerId { get; set; }
+    public LocalizedStringDto? FirstName { get; set; }
+    public LocalizedStringDto? LastName { get; set; }
+    public string? CurrentTeamAbbrev { get; set; }
+    public CareerTotalsDto? CareerTotals { get; set; }
+    public List<GameLogDto>? Last5Games { get; set; }
+}
+
+internal sealed class CareerTotalsDto
+{
+    public CareerLineDto? RegularSeason { get; set; }
+}
+
+internal sealed class CareerLineDto
+{
+    public int? Goals { get; set; }
+    public int? Assists { get; set; }
+    public int? Points { get; set; }
+    public int? GamesPlayed { get; set; }
+}
+
+internal sealed class GameLogResponseDto
+{
+    public List<GameLogDto>? GameLog { get; set; }
+}
+
+internal sealed class GameLogDto
+{
+    public long GameId { get; set; }
+    public int? Goals { get; set; }
+    public int? Assists { get; set; }
+}
+
 internal sealed class PlayByPlayDto
 {
     public long Id { get; set; }

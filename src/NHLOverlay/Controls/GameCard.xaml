@@ -60,6 +60,9 @@
             <TextBlock Text="{Binding CountryText}" FontSize="10.5" Margin="0,2,0,0" Style="{StaticResource CountryText}"
                        Visibility="{Binding HasCountryText, Converter={StaticResource BoolToVisibility}}" />
 
+            <TextBlock Text="{Binding WatchText}" FontSize="10.5" Margin="0,2,0,0" Style="{StaticResource WatchText}"
+                       Visibility="{Binding HasWatchText, Converter={StaticResource BoolToVisibility}}" />
+
             <TextBlock Text="{Binding ShotsText}" FontSize="10.5" Margin="0,1,0,0" Foreground="{StaticResource TextSecondaryBrush}"
                        Visibility="{Binding ShowShots, Converter={StaticResource BoolToVisibility}}" />
 

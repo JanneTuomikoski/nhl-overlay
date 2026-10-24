@@ -135,6 +135,29 @@ internal static class NhlMapper
         })
         .ToList();
 
+    public static PlayerCareer MapPlayer(PlayerLandingDto dto, IReadOnlyList<GameLogDto>? gameLog, DateTimeOffset fetched)
+    {
+        var career = dto.CareerTotals?.RegularSeason;
+        var last5 = (dto.Last5Games ?? []).Where(g => g is not null && g.GameId > 0).ToList();
+        var recent = (gameLog is { Count: > 0 } ? gameLog : last5)
+            .Select(g => new GameLogEntry(g.GameId, g.Goals ?? 0, g.Assists ?? 0))
+            .ToList();
+        var first = dto.FirstName?.Default ?? "";
+        return new PlayerCareer
+        {
+            PlayerId = dto.PlayerId,
+            Name = $"{first} {dto.LastName?.Default}".Trim(),
+            Team = dto.CurrentTeamAbbrev ?? "",
+            Goals = career?.Goals ?? 0,
+            Assists = career?.Assists ?? 0,
+            Points = career?.Points ?? 0,
+            GamesPlayed = career?.GamesPlayed ?? 0,
+            CountedGameIds = last5.Select(g => g.GameId).ToList(),
+            RecentGames = recent,
+            FetchedUtc = fetched,
+        };
+    }
+
     public static PlayByPlay MapPlayByPlay(PlayByPlayDto dto)
     {
         var away = dto.AwayTeam?.Abbrev ?? "";

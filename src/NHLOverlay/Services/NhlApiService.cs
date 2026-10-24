@@ -36,6 +36,13 @@ public interface INhlApiClient
     /// <summary>Every recorded event of one game (shots with coordinates, penalties, goals, ...).</summary>
     Task<PlayByPlay> GetPlayByPlayAsync(long gameId, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    /// <summary>
+    /// Career totals and recent games. The season game log is fetched as well only when the last five games all
+    /// had points, because only then can the streak be longer than five.
+    /// </summary>
+    Task<PlayerCareer> GetPlayerCareerAsync(long playerId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 /// <summary>Failure talking to the NHL API. <see cref="RetryAfter"/> is set when the server asked us to back off.</summary>
@@ -115,6 +122,17 @@ public sealed class NhlApiService : INhlApiClient, IDisposable
         var dto = await GetJsonAsync<PlayByPlayDto>($"gamecenter/{gameId}/play-by-play", cancellationToken).ConfigureAwait(false)
                   ?? throw new NhlApiException($"Empty play-by-play for game {gameId}.");
         return NhlMapper.MapPlayByPlay(dto);
+    }
+
+    public async Task<PlayerCareer> GetPlayerCareerAsync(long playerId, CancellationToken cancellationToken)
+    {
+        var id = playerId.ToString(CultureInfo.InvariantCulture);
+        var landing = await GetJsonAsync<PlayerLandingDto>($"player/{id}/landing", cancellationToken).ConfigureAwait(false)
+                      ?? throw new NhlApiException($"Empty player profile for {playerId}.");
+        IReadOnlyList<GameLogDto>? gameLog = null;
+        if (landing.Last5Games is { Count: 5 } last5 && last5.All(g => (g.Goals ?? 0) + (g.Assists ?? 0) > 0))
+            gameLog = (await GetJsonAsync<GameLogResponseDto>($"player/{id}/game-log/now", cancellationToken).ConfigureAwait(false))?.GameLog;
+        return NhlMapper.MapPlayer(landing, gameLog, DateTimeOffset.UtcNow);
     }
 
     internal async Task<T?> GetJsonAsync<T>(string path, CancellationToken cancellationToken)
