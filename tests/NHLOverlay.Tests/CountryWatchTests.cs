@@ -215,15 +215,42 @@ public sealed class CountryWatchTests : IDisposable
     public void Section_header_toggles_its_league_and_collapsing_hides_the_card()
     {
         string? toggled = null;
-        var card = new GameCardViewModel(9, null!, toggleSection: title => toggled = title) { SectionTitle = "LIIGA" };
+        var card = new GameCardViewModel(9, null!, toggleSection: key => toggled = key) { SectionKey = "LIIGA FINAL", SectionTitle = "FINAL" };
 
         card.ToggleSectionCommand.Execute(null);
         card.IsSectionCollapsed = true;
 
-        Assert.Equal("LIIGA", toggled);
+        Assert.Equal("LIIGA FINAL", toggled);
         Assert.False(card.IsBodyVisible);
         Assert.Equal("3 games · 1 live", OverlayViewModel.SectionSummary(
             [Game(), Game() with { Id = 10, Status = GameStatus.Final }, Game() with { Id = 11, Status = GameStatus.Scheduled }]));
+    }
+
+    [Fact]
+    public void Ended_games_go_last_in_a_final_section_per_league()
+    {
+        var nhlLive = Game() with { Id = 1 };
+        var nhlFinal = Game() with { Id = 2, Status = GameStatus.Final };
+        var nhlNext = Game() with { Id = 3, Status = GameStatus.Scheduled };
+        var liigaFinal = Game() with { Id = 4, Status = GameStatus.Final, League = League.Liiga };
+        var liigaNext = Game() with { Id = 5, Status = GameStatus.Scheduled, League = League.Liiga };
+
+        var placed = OverlayViewModel.PlaceInSections([nhlLive, nhlFinal, nhlNext, liigaFinal, liigaNext]);
+
+        Assert.Equal([1L, 3L, 2L, 5L, 4L], placed.Select(p => p.Game.Id));
+        Assert.Equal(["NHL", "NHL", "NHL FINAL", "LIIGA", "LIIGA FINAL"], placed.Select(p => p.Key));
+        Assert.Equal(["NHL", "NHL", "FINAL", "LIIGA", "FINAL"], placed.Select(p => p.Title));
+        Assert.Equal("LIIGA", placed[^1].Parent);
+    }
+
+    [Fact]
+    public void One_league_gets_only_a_final_title_and_an_all_final_day_none()
+    {
+        var mixed = OverlayViewModel.PlaceInSections([Game() with { Id = 1 }, Game() with { Id = 2, Status = GameStatus.Final }]);
+        Assert.Equal([null, "FINAL"], mixed.Select(p => p.Title));
+
+        var yesterday = OverlayViewModel.PlaceInSections([Game() with { Id = 1, Status = GameStatus.Final }, Game() with { Id = 2, Status = GameStatus.Final }]);
+        Assert.All(yesterday, p => Assert.Null(p.Title));
     }
 
     public void Dispose()

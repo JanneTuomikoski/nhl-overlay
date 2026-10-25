@@ -7,7 +7,7 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}"
              Visibility="{Binding HasSectionTitle, Converter={StaticResource BoolToVisibility}}">
-    <!-- Clicking the title line (interaction mode only) collapses or expands the league's games. -->
+    <!-- Clicking the title line (interaction mode only) collapses or expands the section's games. -->
     <Border Background="Transparent" Cursor="Hand" Padding="10,8,10,2" ToolTip="Show or hide these games"
             AutomationProperties.Name="{Binding SectionTitle}">
         <Border.InputBindings>

@@ -98,7 +98,7 @@ public sealed class GameCardViewModel : ObservableObject
     /// <param name="logos">Logo source.</param>
     /// <param name="setShielded">Spoiler shield action: (gameId, hide) where hide=false reveals the score.</param>
     /// <param name="openFocus">Opens the focus dashboard for a game.</param>
-    /// <param name="toggleSection">Collapses or expands a league section by its title ("NHL" / "LIIGA").</param>
+    /// <param name="toggleSection">Collapses or expands a section by its key ("NHL", "LIIGA FINAL", ...).</param>
     public GameCardViewModel(long id, LogoService logos, Action<long, bool>? setShielded = null, Action<long>? openFocus = null,
         Action<string>? toggleSection = null)
     {
@@ -107,7 +107,7 @@ public sealed class GameCardViewModel : ObservableObject
         ToggleDetailsCommand = new RelayCommand(() => IsDetailsOpen = !IsDetailsOpen);
         ToggleSectionCommand = new RelayCommand(() =>
         {
-            if (SectionTitle is { } title) toggleSection?.Invoke(title);
+            if (SectionKey is { } key) toggleSection?.Invoke(key);
         }, () => toggleSection is not null);
         OpenGameCenterCommand = new RelayCommand(OpenGameCenter, () => _gameCenterUrl is not null);
         ToggleShieldCommand = new RelayCommand(() => setShielded?.Invoke(Id, !IsShielded), () => setShielded is not null);
@@ -117,7 +117,10 @@ public sealed class GameCardViewModel : ObservableObject
     private bool _isNhl = true;
     private string? _sectionTitle;
 
-    /// <summary>"NHL" / "LIIGA" above the first card of a league when both leagues are shown.</summary>
+    /// <summary>The section this card belongs to ("NHL", "NHL FINAL", "LIIGA", "LIIGA FINAL").</summary>
+    public string? SectionKey { get; set; }
+
+    /// <summary>"NHL" / "LIIGA" / "FINAL" above the first card of a titled section.</summary>
     public string? SectionTitle
     {
         get => _sectionTitle;
@@ -132,7 +135,7 @@ public sealed class GameCardViewModel : ObservableObject
     private bool _isSectionCollapsed;
     private string _sectionSummary = "";
 
-    /// <summary>The user collapsed this card's league; only the section header (on the first card) stays visible.</summary>
+    /// <summary>The user collapsed this card's section (or its league); only the section header (on the first card) stays visible.</summary>
     public bool IsSectionCollapsed
     {
         get => _isSectionCollapsed;

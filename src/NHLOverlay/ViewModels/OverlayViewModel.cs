@@ -416,10 +416,11 @@ public sealed class OverlayViewModel : ObservableObject
             Games.RemoveAt(i);
         }
 
-        var bothLeagues = ordered.Any(g => g.League != ordered[0].League);
-        for (var i = 0; i < ordered.Count; i++)
+        var placed = PlaceInSections(ordered);
+        var collapsed = context.Settings.Appearance.CollapsedSections;
+        for (var i = 0; i < placed.Count; i++)
         {
-            var game = ordered[i];
+            var (game, key, title, parent) = placed[i];
             if (!_cards.TryGetValue(game.Id, out var card))
             {
                 card = new GameCardViewModel(game.Id, _logos, (id, hide) =>
@@ -431,20 +432,47 @@ public sealed class OverlayViewModel : ObservableObject
             }
 
             card.Update(game, context);
-            // Section headers (and collapsing) only when both leagues are on screen.
-            var title = game.League == League.Nhl ? "NHL" : "LIIGA";
-            card.SectionTitle = bothLeagues && (i == 0 || ordered[i - 1].League != game.League) ? title : null;
-            card.IsSectionCollapsed = bothLeagues && context.Settings.Appearance.CollapsedSections.Contains(title);
-            card.SectionSummary = card.IsSectionCollapsed && card.HasSectionTitle ? SectionSummary(ordered.Where(g => g.League == game.League)) : "";
+            // Only titled sections can be collapsed; a collapsed league also hides its FINAL section.
+            var parentCollapsed = parent is not null && placed.Any(p => p.Key == parent && p.Title is not null) && collapsed.Contains(parent);
+            card.SectionKey = key;
+            card.SectionTitle = (i == 0 || placed[i - 1].Key != key) && !parentCollapsed ? title : null;
+            card.IsSectionCollapsed = parentCollapsed || (title is not null && collapsed.Contains(key));
+            card.SectionSummary = card.IsSectionCollapsed && card.HasSectionTitle
+                ? SectionSummary(placed.Where(p => p.Key == key || p.Parent == key).Select(p => p.Game))
+                : "";
             var index = Games.IndexOf(card);
             if (index < 0) Games.Insert(i, card);
             else if (index != i) Games.Move(index, i);
         }
     }
 
-    private void ToggleSection(string title) => _settings.Update(s =>
+    /// <summary>Where a card goes: its section's key ("NHL", "NHL FINAL", ...), the title shown above the section's first card (null = untitled), and the enclosing league section.</summary>
+    internal sealed record CardPlacement(HockeyGame Game, string Key, string? Title, string? Parent);
+
+    /// <summary>
+    /// League sections (titled only when both leagues are on screen), each with its ended games last in a
+    /// "FINAL" section when there are also games still to come or in progress.
+    /// </summary>
+    internal static IReadOnlyList<CardPlacement> PlaceInSections(IReadOnlyList<HockeyGame> ordered)
     {
-        if (!s.Appearance.CollapsedSections.Remove(title)) s.Appearance.CollapsedSections.Add(title);
+        var bothLeagues = ordered.Any(g => g.League != ordered[0].League);
+        var placed = new List<CardPlacement>();
+        foreach (var league in ordered.GroupBy(g => g.League))
+        {
+            var name = league.Key == League.Nhl ? "NHL" : "LIIGA";
+            var active = league.Where(g => !g.Status.IsFinal()).ToList();
+            var ended = league.Where(g => g.Status.IsFinal()).ToList();
+            var split = active.Count > 0 && ended.Count > 0;
+            placed.AddRange((split ? active : league.ToList()).Select(g => new CardPlacement(g, name, bothLeagues ? name : null, null)));
+            if (split) placed.AddRange(ended.Select(g => new CardPlacement(g, $"{name} FINAL", "FINAL", name)));
+        }
+
+        return placed;
+    }
+
+    private void ToggleSection(string key) => _settings.Update(s =>
+    {
+        if (!s.Appearance.CollapsedSections.Remove(key)) s.Appearance.CollapsedSections.Add(key);
     });
 
     /// <summary>"3 games · 1 live" (no scores, so a collapsed section never spoils anything).</summary>

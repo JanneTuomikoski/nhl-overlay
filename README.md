@@ -129,9 +129,12 @@ every 100 goals/assists/points) with "1 goal from 500" card lines; point streaks
 By default for favorite teams' and watched-country players.
 
 **Liiga (off by default).** Settings > General > Leagues. Liiga games appear in their own section with scores,
-clocks, goals, logos, hat tricks, favorites and notifications. Click a section title (NHL or LIIGA, in
-interaction mode) to collapse or expand that league; a collapsed section shows only its game count and stays
-collapsed after a restart. Standings, the focus dashboard and the player watches are NHL only.
+clocks, goals, logos, hat tricks, favorites and notifications. Standings, the focus dashboard and the player
+watches are NHL only.
+
+**Sections.** Ended games go last in each league, under a FINAL title, once there are also games in progress
+or still to come. Click a section title (NHL, LIIGA or FINAL, in interaction mode) to collapse or expand it; a
+collapsed section shows only its game count and stays collapsed after a restart.
 
 ## Settings and files
 
