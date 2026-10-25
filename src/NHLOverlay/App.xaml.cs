@@ -81,6 +81,7 @@ public partial class App : Application
         _teams = new TeamDirectoryService(_api, _settings.CacheDirectory, TimeProvider.System);
         _teams.Start(_state);
         _rosters = new RosterService(_api, _settings.CacheDirectory, TimeProvider.System);
+        _rosters.SetCountryOverrides(_settings.Current.CountryWatch.Overrides);
         _rosters.Start(_state);
         _boxscores = new BoxscoreService(_api, TimeProvider.System);
         _boxscores.Start();
@@ -129,6 +130,7 @@ public partial class App : Application
         _settings.Changed += (_, s) => Dispatcher.InvokeAsync(() =>
         {
             _polling.Nudge(); // e.g. Liiga switched on: fetch it now rather than at the next due time
+            _rosters?.SetCountryOverrides(s.CountryWatch.Overrides);
             SyncTray();
             UpdateGaming(_foreground?.CurrentProcess);
         });
@@ -245,7 +247,7 @@ public partial class App : Application
         }
 
         var viewModel = new SettingsViewModel(
-            _settings!, _state!, _hotkeys!, _teams!, _logos!, _notifications!, _speech!, () => _polling?.RequestRefresh(), Dispatcher);
+            _settings!, _state!, _hotkeys!, _teams!, _logos!, _notifications!, _speech!, _rosters!, () => _polling?.RequestRefresh(), Dispatcher);
         _settingsWindow = new SettingsWindow(viewModel);
         _settingsWindow.Closed += (_, _) =>
         {

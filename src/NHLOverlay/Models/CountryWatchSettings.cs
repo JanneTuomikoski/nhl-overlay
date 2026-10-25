@@ -14,12 +14,26 @@ public sealed class CountryWatchSettings
     /// <summary>Show the "Finns tonight" summary above the games.</summary>
     public bool ShowPanel { get; set; } = true;
 
+    /// <summary>
+    /// Players whose country is not their birth country (the only nationality on the roster), e.g. Oliver
+    /// Kapanen: born in Sweden, plays for Finland.
+    /// </summary>
+    public List<CountryOverride> Overrides { get; set; } = [];
+
     internal CountryWatchSettings Normalize()
     {
         Countries = AppSettings.NormalizeTeamList(Countries).Where(c => c.Length == 3).ToList();
+        Overrides = (Overrides ?? [])
+            .Where(o => o is not null && o.PlayerId > 0 && o.Country?.Trim().Length == 3)
+            .Select(o => o with { Country = o.Country.Trim().ToUpperInvariant(), Name = o.Name ?? "", Team = o.Team ?? "" })
+            .GroupBy(o => o.PlayerId).Select(g => g.Last())
+            .ToList();
         return this;
     }
 }
+
+/// <summary>A manual nationality: <see cref="Name"/> and <see cref="Team"/> are only for showing it in settings.</summary>
+public sealed record CountryOverride(long PlayerId, string Name, string Team, string Country);
 
 public enum PlayerWatchScope
 {

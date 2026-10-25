@@ -196,6 +196,43 @@ public sealed class CountryWatchTests : IDisposable
     }
 
     [Fact]
+    public async Task A_nationality_override_counts_a_player_born_elsewhere()
+    {
+        var kapanen = new RosterPlayer(7, "Oliver", "Kapanen", "C", "SWE", "MTL");
+        var raty = new RosterPlayer(8, "Aatu", "Räty", "C", "FIN", "MTL");
+        var api = new FakeNhlApi();
+        api.Rosters["MTL"] = [kapanen, raty];
+        using var rosters = new RosterService(api, _directory, new ManualTimeProvider(DateTimeOffset.UtcNow));
+        await rosters.FetchAsync("MTL", CancellationToken.None);
+        var changes = 0;
+        rosters.Changed += (_, _) => changes++;
+
+        rosters.SetCountryOverrides([new CountryOverride(7, "Oliver Kapanen", "MTL", "FIN")]);
+        rosters.SetCountryOverrides([new CountryOverride(7, "Oliver Kapanen", "MTL", "FIN")]); // unchanged: no event
+
+        Assert.Equal(1, changes);
+        Assert.Equal("FIN", rosters.Find(7)!.Country);
+        Assert.All(rosters.Team("MTL"), p => Assert.Equal("FIN", p.Country));
+        var game = Game(Goal(7, "MTL", 1, 0)) with { Away = new HockeyTeam { Abbrev = "MTL", Score = 1 } };
+        Assert.Contains(CountryWatch.ForGame(game, Finland, rosters.Team, _ => null), p => p.PlayerId == 7 && p.Stat == "1+0");
+
+        // The settings search shows the birth country and ignores accents.
+        Assert.Equal("SWE", Assert.Single(rosters.Search("kapa", 5)).Country);
+        Assert.Equal(8, Assert.Single(rosters.Search("raty", 5)).Id);
+    }
+
+    [Fact]
+    public void Country_overrides_are_normalized()
+    {
+        var watch = new CountryWatchSettings
+        {
+            Overrides = [new(7, "Oliver Kapanen", "MTL", " swe"), new(7, "Oliver Kapanen", "MTL", "fin"), new(0, "Nobody", "", "FIN"), new(9, "X", "", "FINLAND")],
+        }.Normalize();
+
+        Assert.Equal([new CountryOverride(7, "Oliver Kapanen", "MTL", "FIN")], watch.Overrides);
+    }
+
+    [Fact]
     public void Card_shows_watched_players()
     {
         var game = Game(Goal(1, "FLA", 1, 0, 2));

@@ -127,7 +127,7 @@
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding CountryWatchEnabled}"
                                   Content="Follow players from chosen countries" />
                         <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
-                                   Text="Goals and assists come from each game's goal list; goalies' saves from the boxscore. Nationality is the birth country on the team roster." />
+                                   Text="Goals and assists come from each game's goal list; goalies' saves from the boxscore. Nationality is the birth country on the team roster, unless corrected below." />
                         <StackPanel IsEnabled="{Binding CountryWatchEnabled}">
                             <TextBlock Text="Countries" Style="{StaticResource FieldLabel}" />
                             <ItemsControl ItemsSource="{Binding Countries}" Focusable="False">
@@ -153,6 +153,41 @@
                                       Content="Points on the game cards" />
                             <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
                                        Text="Alerts for their goals and assists are set on the Notifications tab (Watched players' points)." />
+
+                            <TextBlock Text="Nationality corrections" Style="{StaticResource FieldLabel}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="The roster only lists where a player was born. Add players who play for another country, e.g. Oliver Kapanen (born in Sweden, plays for Finland)." />
+                            <DockPanel Margin="0,6,0,0">
+                                <TextBlock DockPanel.Dock="Left" Text="Count as" VerticalAlignment="Center" Margin="0,0,10,0"
+                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                                <ListBox Style="{StaticResource ChipList}" ItemsSource="{Binding OverrideCountryOptions}" DisplayMemberPath="Label"
+                                         SelectedValuePath="Value" SelectedValue="{Binding OverrideCountry}" />
+                            </DockPanel>
+                            <TextBlock Text="Search a player by name" Margin="0,8,0,3" Foreground="{StaticResource TextSecondaryBrush}" />
+                            <TextBox Style="{StaticResource DarkTextBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Search players" />
+                            <ItemsControl ItemsSource="{Binding SearchResults}" Focusable="False" Margin="0,2,0,0"
+                                          Visibility="{Binding HasSearchResults, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource SmallActionButton}" Content="{Binding Label}" Command="{Binding AddCommand}"
+                                                HorizontalAlignment="Left" Margin="0,4,0,0" ToolTip="Add with the selected country"
+                                                AutomationProperties.Name="{Binding Label}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Overrides}" Focusable="False" Margin="0,8,0,0"
+                                          Visibility="{Binding HasOverrides, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,2">
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource SmallActionButton}" Content="Remove"
+                                                    Command="{Binding RemoveCommand}" AutomationProperties.Name="{Binding Label, StringFormat=Remove {0}}" />
+                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
 
                         <TextBlock Text="Watches" Style="{StaticResource SectionHeader}" Margin="0,22,0,10" />

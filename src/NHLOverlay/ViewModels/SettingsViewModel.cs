@@ -65,6 +65,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         LogoService logos,
         NotificationService notifications,
         SpeechService speech,
+        RosterService rosters,
         Action refreshNow,
         Dispatcher dispatcher)
     {
@@ -76,7 +77,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         HatTrick = new HatTrickSectionViewModel();
         Notifications = new NotificationsSectionViewModel(notifications, speech);
         Gaming = new GamingSectionViewModel();
-        Players = new PlayersSectionViewModel();
+        Players = new PlayersSectionViewModel(rosters, dispatcher);
         Recap = new RecapSectionViewModel(teams, logos);
         _sections = [Teams, HatTrick, Notifications, Gaming, Players, Recap];
 
@@ -392,5 +393,6 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         Revert();
         _state.Changed -= _stateHandler;
         _hotkeys.ProblemsChanged -= _hotkeyProblemsHandler;
+        Players.Dispose();
     }
 }

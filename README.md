@@ -111,7 +111,8 @@ is read (a WinEvent hook, no polling, nothing touches the game).
 
 **Finnish players watch.** "FINNS TONIGHT" lists Finnish players with points, and goalies with saves, above the
 games; cards show them too, and their goals and assists can alert you. Other countries can be chosen in Settings >
-Players. Nationality is the birth country on the team roster.
+Players. Nationality is the birth country on the team roster; players who represent another country (e.g.
+Oliver Kapanen, born in Sweden) can be added under Settings > Players > Nationality corrections.
 
 **Morning recap.** From 08:00 until a chosen hour (default 14:00): your teams' results, hat tricks, shutouts
 (goalie from the boxscore), the biggest comeback, OT/SO games, the highest-scoring game and watched players'
@@ -190,6 +191,6 @@ tests/NHLOverlay.Tests/   unit tests with captured API responses in Fixtures/ (r
 - The NHL and Liiga APIs are unofficial and can change without notice.
 - The power-play countdown is an estimate from penalty times; the strength itself comes from the NHL's
   situation code.
-- Nationality uses birth country (a player born abroad who represents Finland is not counted).
+- Nationality uses birth country unless corrected by hand (the NHL API has no nationality field).
 - Career totals for milestones refresh once a day; a milestone is detected as soon as the goal appears.
 - Not implemented: horizontal ticker layout, light theme, automatic updates.

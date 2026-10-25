@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using NHLOverlay.Helpers;
 using NHLOverlay.Models;
@@ -23,6 +24,7 @@ public sealed class RosterService : IDisposable
     private readonly Dictionary<long, RosterPlayer> _players = [];
     private readonly HashSet<string> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _work = new(0);
+    private IReadOnlyDictionary<long, string> _countryOverrides = new Dictionary<long, string>();
     private CancellationTokenSource? _cts;
 
     private sealed record CachedRoster(DateTimeOffset SavedUtc, List<RosterPlayer> Players);
@@ -37,15 +39,58 @@ public sealed class RosterService : IDisposable
     /// <summary>Raised on a background thread after a roster was loaded or refreshed.</summary>
     public event EventHandler? Changed;
 
+    /// <summary>A player with their country (a manual override when there is one, else the birth country).</summary>
     public RosterPlayer? Find(long playerId)
     {
-        lock (_gate) return _players.GetValueOrDefault(playerId);
+        lock (_gate) return _players.TryGetValue(playerId, out var player) ? WithCountry(player) : null;
     }
 
     public IReadOnlyList<RosterPlayer> Team(string abbrev)
     {
-        lock (_gate) return _rosters.TryGetValue(abbrev, out var roster) ? roster.Players : [];
+        lock (_gate)
+        {
+            if (!_rosters.TryGetValue(abbrev, out var roster)) return [];
+            return _countryOverrides.Count == 0 ? roster.Players : roster.Players.Select(WithCountry).ToList();
+        }
     }
+
+    /// <summary>Players whose country differs from their birth country (from settings).</summary>
+    public void SetCountryOverrides(IEnumerable<CountryOverride> overrides)
+    {
+        var map = overrides.ToDictionary(o => o.PlayerId, o => o.Country);
+        lock (_gate)
+        {
+            if (map.Count == _countryOverrides.Count && map.All(kv => _countryOverrides.GetValueOrDefault(kv.Key) == kv.Value)) return;
+            _countryOverrides = map;
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Loaded players whose name contains <paramref name="text"/> (ignoring case and accents), with their birth country.</summary>
+    public IReadOnlyList<RosterPlayer> Search(string text, int max)
+    {
+        text = text.Trim();
+        if (text.Length < 2) return [];
+        var compare = CultureInfo.InvariantCulture.CompareInfo;
+        const CompareOptions options = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
+        lock (_gate)
+        {
+            return _players.Values
+                .Where(p => compare.IndexOf(p.FullName, text, options) >= 0)
+                .OrderBy(p => compare.IsPrefix(p.LastName, text, options) ? 0 : 1)
+                .ThenBy(p => p.LastName, StringComparer.CurrentCulture)
+                .Take(max)
+                .ToList();
+        }
+    }
+
+    /// <summary>Queues the rosters of every NHL team (e.g. so a player search in settings finds anyone).</summary>
+    public void EnsureAll() => Ensure(NhlTeams.BuiltIn.Select(t => t.Abbrev));
+
+    /// <summary>Called under the lock.</summary>
+    private RosterPlayer WithCountry(RosterPlayer player) =>
+        _countryOverrides.TryGetValue(player.Id, out var country) && country != player.Country ? player with { Country = country } : player;
 
     public void Start(GameStateService state)
     {
