@@ -190,6 +190,9 @@ public sealed class AppearanceSettings
     /// <summary>Expanded view: list the assists under each goal.</summary>
     public bool ShowAssists { get; set; } = true;
 
+    /// <summary>A game card pulses softly for 30 seconds after a goal.</summary>
+    public bool FlashOnGoal { get; set; } = true;
+
     /// <summary>Sections ("NHL", "LIIGA", "NHL FINAL", "LIIGA FINAL") the user collapsed by clicking their title.</summary>
     public List<string> CollapsedSections { get; set; } = [];
 

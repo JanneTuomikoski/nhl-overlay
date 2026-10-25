@@ -61,4 +61,46 @@ public class GameCardViewModelTests
         Assert.Equal(["L. Draisaitl, E. Bouchard", "", "L. Draisaitl", ""], lines.Select(l => l.Assists));
         Assert.False(lines[1].HasAssists);
     }
+
+    [Fact]
+    public void Flashes_after_a_goal_but_not_for_the_first_score_it_sees()
+    {
+        var settings = new AppSettings();
+        settings.Appearance.ShowTeamLogos = false;
+        var shielded = false;
+        var card = new GameCardViewModel(1, null!);
+        void Show(int away, int home) => card.Update(
+            new HockeyGame
+            {
+                Id = 1,
+                Status = GameStatus.Live,
+                RawGameState = "LIVE",
+                Away = new HockeyTeam { Abbrev = "EDM", Score = away },
+                Home = new HockeyTeam { Abbrev = "TOR", Score = home },
+            },
+            new CardContext(settings, new HashSet<string>(), _ => null, new Dictionary<long, IReadOnlyList<PlayerGameGoals>>(),
+                DateTimeOffset.UtcNow, Zones.Helsinki, System.Globalization.CultureInfo.InvariantCulture) { IsShielded = _ => shielded });
+
+        Show(2, 1); // startup: baseline
+        Assert.False(card.IsGoalFlash);
+
+        Show(2, 2);
+        Assert.True(card.IsGoalFlash);
+        Assert.True(card.HomeGoalFlash);
+        Assert.False(card.AwayGoalFlash);
+
+        Show(2, 2); // no change: still flashing until the timer ends it
+        Assert.True(card.IsGoalFlash);
+
+        shielded = true;
+        Show(2, 3); // hidden score: no flash
+        Assert.False(card.IsGoalFlash);
+        shielded = false;
+        Show(2, 3); // revealed: a new baseline, not a goal
+        Assert.False(card.IsGoalFlash);
+
+        settings.Appearance.FlashOnGoal = false;
+        Show(3, 3);
+        Assert.False(card.IsGoalFlash);
+    }
 }

@@ -12,6 +12,7 @@
         <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardDividerBrush}" ToolTip="{Binding ToolTip}"
                 Visibility="{Binding IsBodyVisible, Converter={StaticResource BoolToVisibility}}">
             <Grid Style="{StaticResource FavoriteCardBackground}">
+                <Rectangle Style="{StaticResource GoalFlashOverlay}" />
                 <Rectangle Style="{StaticResource FavoriteBar}" />
                 <StackPanel Margin="12,8,12,10">
                     <Grid>
@@ -45,7 +46,7 @@
                                    Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
                                    Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding AwayScore}" FontSize="22" FontWeight="Bold"
-                                   TextAlignment="Right" Style="{StaticResource AwayTeamText}" />
+                                   TextAlignment="Right" Style="{StaticResource AwayScoreText}" />
 
                         <!-- Home -->
                         <Image Grid.Row="1" Source="{Binding HomeLogo}" Width="30" Height="30" Margin="0,2,10,2"
@@ -66,7 +67,7 @@
                                    Margin="10,0" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
                                    Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding HomeScore}" FontSize="22" FontWeight="Bold"
-                                   TextAlignment="Right" Style="{StaticResource HomeTeamText}" />
+                                   TextAlignment="Right" Style="{StaticResource HomeScoreText}" />
                     </Grid>
 
                     <DockPanel Margin="0,4,0,0">

@@ -506,6 +506,65 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Goal flash: a faint green pulse over the card for 30 s after a goal (behind the content). -->
+    <Style x:Key="GoalFlashOverlay" TargetType="Rectangle">
+        <Setter Property="Fill" Value="{StaticResource StatusLiveBrush}" />
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsGoalFlash}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard x:Name="CardPulse">
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="0.16" Duration="0:0:0.9"
+                                             AutoReverse="True" RepeatBehavior="0:0:30" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <StopStoryboard BeginStoryboardName="CardPulse" />
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The scoring team's number blinks gently while the card flashes. -->
+    <Style x:Key="AwayScoreText" TargetType="TextBlock" BasedOn="{StaticResource AwayTeamText}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding AwayGoalFlash}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard x:Name="AwayScorePulse">
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.35" Duration="0:0:0.6"
+                                             AutoReverse="True" RepeatBehavior="0:0:30" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <StopStoryboard BeginStoryboardName="AwayScorePulse" />
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="HomeScoreText" TargetType="TextBlock" BasedOn="{StaticResource HomeTeamText}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding HomeGoalFlash}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard x:Name="HomeScorePulse">
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.35" Duration="0:0:0.6"
+                                             AutoReverse="True" RepeatBehavior="0:0:30" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <StopStoryboard BeginStoryboardName="HomeScorePulse" />
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- "NHL" / "LIIGA" section header above a league's first card (see Controls/SectionHeader). -->
     <Style x:Key="LeagueHeader" TargetType="TextBlock">
         <Setter Property="FontSize" Value="10.5" />

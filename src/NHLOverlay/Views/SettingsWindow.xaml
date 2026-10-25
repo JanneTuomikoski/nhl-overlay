@@ -455,6 +455,8 @@
                                   Content="Show shots on goal in compact view" />
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowAssists}"
                                   Content="Show assists under each goal in expanded view" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding FlashOnGoal}"
+                                  Content="Flash the game card for 30 seconds after a goal" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

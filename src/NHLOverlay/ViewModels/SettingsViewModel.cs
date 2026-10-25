@@ -43,6 +43,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private bool _showGameClock;
     private bool _showShotsOnGoal;
     private bool _showAssists;
+    private bool _flashOnGoal;
     private bool _alwaysOnTop;
     private bool _clickThrough;
     private bool _lockPosition;
@@ -159,6 +160,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     public bool ShowAssists { get => _showAssists; set => SetProperty(ref _showAssists, value); }
 
+    public bool FlashOnGoal { get => _flashOnGoal; set => SetProperty(ref _flashOnGoal, value); }
+
     // Overlay window
     public bool AlwaysOnTop { get => _alwaysOnTop; set => SetProperty(ref _alwaysOnTop, value); }
 
@@ -216,6 +219,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         ShowGameClock = s.Appearance.ShowGameClock;
         ShowShotsOnGoal = s.Appearance.ShowShotsOnGoal;
         ShowAssists = s.Appearance.ShowAssists;
+        FlashOnGoal = s.Appearance.FlashOnGoal;
         AlwaysOnTop = s.Window.AlwaysOnTop;
         ClickThrough = s.Window.ClickThrough;
         LockPosition = s.Window.LockPosition;
@@ -281,6 +285,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         s.Appearance.ShowGameClock = ShowGameClock;
         s.Appearance.ShowShotsOnGoal = ShowShotsOnGoal;
         s.Appearance.ShowAssists = ShowAssists;
+        s.Appearance.FlashOnGoal = FlashOnGoal;
         s.Window.AlwaysOnTop = AlwaysOnTop;
         s.Window.ClickThrough = ClickThrough;
         s.Window.LockPosition = LockPosition;
