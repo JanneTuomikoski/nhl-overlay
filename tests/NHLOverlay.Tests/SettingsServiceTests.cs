@@ -212,6 +212,16 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(FavoriteHighlight.BarAndTint, service.Current.Teams.Highlight);
     }
 
+    [Fact]
+    public void Collapsed_sections_are_normalized()
+    {
+        WriteSettingsFile("""{ "appearance": { "collapsedSections": [" liiga", "LIIGA", "SHL", null] } }""");
+        var service = CreateService();
+        service.Load();
+
+        Assert.Equal(["LIIGA"], service.Current.Appearance.CollapsedSections);
+    }
+
     [Theory]
     [InlineData("Ctrl+Alt+N", "Ctrl+Alt+N")]
     [InlineData("alt + ctrl + n", "Ctrl+Alt+N")]

@@ -98,11 +98,17 @@ public sealed class GameCardViewModel : ObservableObject
     /// <param name="logos">Logo source.</param>
     /// <param name="setShielded">Spoiler shield action: (gameId, hide) where hide=false reveals the score.</param>
     /// <param name="openFocus">Opens the focus dashboard for a game.</param>
-    public GameCardViewModel(long id, LogoService logos, Action<long, bool>? setShielded = null, Action<long>? openFocus = null)
+    /// <param name="toggleSection">Collapses or expands a league section by its title ("NHL" / "LIIGA").</param>
+    public GameCardViewModel(long id, LogoService logos, Action<long, bool>? setShielded = null, Action<long>? openFocus = null,
+        Action<string>? toggleSection = null)
     {
         Id = id;
         _logos = logos;
         ToggleDetailsCommand = new RelayCommand(() => IsDetailsOpen = !IsDetailsOpen);
+        ToggleSectionCommand = new RelayCommand(() =>
+        {
+            if (SectionTitle is { } title) toggleSection?.Invoke(title);
+        }, () => toggleSection is not null);
         OpenGameCenterCommand = new RelayCommand(OpenGameCenter, () => _gameCenterUrl is not null);
         ToggleShieldCommand = new RelayCommand(() => setShielded?.Invoke(Id, !IsShielded), () => setShielded is not null);
         FocusCommand = new RelayCommand(() => openFocus?.Invoke(Id), () => openFocus is not null && _isNhl);
@@ -122,6 +128,26 @@ public sealed class GameCardViewModel : ObservableObject
     }
 
     public bool HasSectionTitle => SectionTitle is not null;
+
+    private bool _isSectionCollapsed;
+    private string _sectionSummary = "";
+
+    /// <summary>The user collapsed this card's league; only the section header (on the first card) stays visible.</summary>
+    public bool IsSectionCollapsed
+    {
+        get => _isSectionCollapsed;
+        set
+        {
+            if (SetProperty(ref _isSectionCollapsed, value)) OnPropertyChanged(nameof(IsBodyVisible));
+        }
+    }
+
+    public bool IsBodyVisible => !IsSectionCollapsed;
+
+    /// <summary>"3 games · 1 live" next to a collapsed section's title.</summary>
+    public string SectionSummary { get => _sectionSummary; set => SetProperty(ref _sectionSummary, value); }
+
+    public ICommand ToggleSectionCommand { get; }
 
     /// <summary>Opens this game in the focus dashboard window.</summary>
     public ICommand FocusCommand { get; }

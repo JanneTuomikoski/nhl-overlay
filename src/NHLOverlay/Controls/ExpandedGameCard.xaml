@@ -8,8 +8,9 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
     <StackPanel>
-        <TextBlock Text="{Binding SectionTitle}" Style="{StaticResource LeagueHeader}" />
-        <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardDividerBrush}" ToolTip="{Binding ToolTip}">
+        <controls:SectionHeader />
+        <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardDividerBrush}" ToolTip="{Binding ToolTip}"
+                Visibility="{Binding IsBodyVisible, Converter={StaticResource BoolToVisibility}}">
             <Grid Style="{StaticResource FavoriteCardBackground}">
                 <Rectangle Style="{StaticResource FavoriteBar}" />
                 <StackPanel Margin="12,8,12,10">

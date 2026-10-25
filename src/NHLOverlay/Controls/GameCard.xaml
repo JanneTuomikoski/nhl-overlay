@@ -8,10 +8,11 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
     <StackPanel>
-        <TextBlock Text="{Binding SectionTitle}" Style="{StaticResource LeagueHeader}" />
+        <controls:SectionHeader />
 
         <!-- Clicking the card (interaction mode only) opens its details. -->
-        <Grid Cursor="Hand" ToolTip="{Binding ToolTip}" Style="{StaticResource FavoriteCardBackground}">
+        <Grid Cursor="Hand" ToolTip="{Binding ToolTip}" Style="{StaticResource FavoriteCardBackground}"
+              Visibility="{Binding IsBodyVisible, Converter={StaticResource BoolToVisibility}}">
             <Grid.InputBindings>
                 <MouseBinding Gesture="LeftClick" Command="{Binding ToggleDetailsCommand}" />
             </Grid.InputBindings>

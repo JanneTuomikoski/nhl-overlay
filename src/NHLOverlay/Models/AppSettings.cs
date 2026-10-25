@@ -187,9 +187,14 @@ public sealed class AppearanceSettings
 
     public bool ShowShotsOnGoal { get; set; }
 
+    /// <summary>League sections ("NHL", "LIIGA") the user collapsed by clicking their title.</summary>
+    public List<string> CollapsedSections { get; set; } = [];
+
     internal AppearanceSettings Normalize()
     {
         if (!Enum.IsDefined(DisplayMode)) DisplayMode = DisplayMode.Compact;
+        CollapsedSections = (CollapsedSections ?? []).Where(s => s is not null).Select(s => s.Trim().ToUpperInvariant())
+            .Where(s => s is "NHL" or "LIIGA").Distinct().ToList();
         BackgroundOpacity = ClampOrDefault(BackgroundOpacity, 0.0, 1.0, 0.85);
         UiScale = ClampOrDefault(UiScale, MinUiScale, MaxUiScale, 1.0);
         return this;

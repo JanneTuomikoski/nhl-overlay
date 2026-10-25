@@ -1,0 +1,35 @@
+<UserControl x:Class="NHLOverlay.Controls.SectionHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:NHLOverlay.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}"
+             Visibility="{Binding HasSectionTitle, Converter={StaticResource BoolToVisibility}}">
+    <!-- Clicking the title line (interaction mode only) collapses or expands the league's games. -->
+    <Border Background="Transparent" Cursor="Hand" Padding="10,8,10,2" ToolTip="Show or hide these games"
+            AutomationProperties.Name="{Binding SectionTitle}">
+        <Border.InputBindings>
+            <MouseBinding Gesture="LeftClick" Command="{Binding ToggleSectionCommand}" />
+        </Border.InputBindings>
+        <DockPanel>
+            <TextBlock DockPanel.Dock="Left" FontFamily="{StaticResource IconFont}" FontSize="8" Margin="0,0,5,0"
+                       VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value="&#xE70D;" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSectionCollapsed}" Value="True">
+                                <Setter Property="Text" Value="&#xE76C;" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding SectionSummary}" FontSize="10.5"
+                       Foreground="{StaticResource TextSecondaryBrush}" />
+            <TextBlock Text="{Binding SectionTitle}" Style="{StaticResource LeagueHeader}" />
+        </DockPanel>
+    </Border>
+</UserControl>

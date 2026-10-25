@@ -416,6 +416,7 @@ public sealed class OverlayViewModel : ObservableObject
             Games.RemoveAt(i);
         }
 
+        var bothLeagues = ordered.Any(g => g.League != ordered[0].League);
         for (var i = 0; i < ordered.Count; i++)
         {
             var game = ordered[i];
@@ -425,19 +426,32 @@ public sealed class OverlayViewModel : ObservableObject
                 {
                     if (hide) _spoilers.Shield(id);
                     else _spoilers.Reveal(id);
-                }, _openFocus);
+                }, _openFocus, ToggleSection);
                 _cards[game.Id] = card;
             }
 
             card.Update(game, context);
-            // Section headers only when both leagues are on screen.
-            var bothLeagues = ordered.Any(g => g.League != ordered[0].League);
-            card.SectionTitle = bothLeagues && (i == 0 || ordered[i - 1].League != game.League)
-                ? game.League == League.Nhl ? "NHL" : "LIIGA"
-                : null;
+            // Section headers (and collapsing) only when both leagues are on screen.
+            var title = game.League == League.Nhl ? "NHL" : "LIIGA";
+            card.SectionTitle = bothLeagues && (i == 0 || ordered[i - 1].League != game.League) ? title : null;
+            card.IsSectionCollapsed = bothLeagues && context.Settings.Appearance.CollapsedSections.Contains(title);
+            card.SectionSummary = card.IsSectionCollapsed && card.HasSectionTitle ? SectionSummary(ordered.Where(g => g.League == game.League)) : "";
             var index = Games.IndexOf(card);
             if (index < 0) Games.Insert(i, card);
             else if (index != i) Games.Move(index, i);
         }
+    }
+
+    private void ToggleSection(string title) => _settings.Update(s =>
+    {
+        if (!s.Appearance.CollapsedSections.Remove(title)) s.Appearance.CollapsedSections.Add(title);
+    });
+
+    /// <summary>"3 games · 1 live" (no scores, so a collapsed section never spoils anything).</summary>
+    internal static string SectionSummary(IEnumerable<HockeyGame> games)
+    {
+        var list = games.ToList();
+        var live = list.Count(g => g.Status.IsInProgress());
+        return $"{list.Count} game{(list.Count == 1 ? "" : "s")}" + (live > 0 ? $" · {live} live" : "");
     }
 }

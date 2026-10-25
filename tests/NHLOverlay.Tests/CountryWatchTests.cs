@@ -211,6 +211,21 @@ public sealed class CountryWatchTests : IDisposable
         Assert.Equal("FIN  A. Barkov 1+0 · A. Lundell 0+1 · J. Saros", card.CountryTextLong);
     }
 
+    [Fact]
+    public void Section_header_toggles_its_league_and_collapsing_hides_the_card()
+    {
+        string? toggled = null;
+        var card = new GameCardViewModel(9, null!, toggleSection: title => toggled = title) { SectionTitle = "LIIGA" };
+
+        card.ToggleSectionCommand.Execute(null);
+        card.IsSectionCollapsed = true;
+
+        Assert.Equal("LIIGA", toggled);
+        Assert.False(card.IsBodyVisible);
+        Assert.Equal("3 games · 1 live", OverlayViewModel.SectionSummary(
+            [Game(), Game() with { Id = 10, Status = GameStatus.Final }, Game() with { Id = 11, Status = GameStatus.Scheduled }]));
+    }
+
     public void Dispose()
     {
         try
