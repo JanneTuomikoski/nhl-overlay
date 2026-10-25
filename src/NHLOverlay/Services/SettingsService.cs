@@ -164,6 +164,27 @@ public sealed class SettingsService
         Changed?.Invoke(this, snapshot);
     }
 
+    /// <summary>
+    /// Like <see cref="Update"/>, but not written to disk: a live preview from the settings window, which
+    /// either saves it with <see cref="Update"/> or reverts it. Returns false (and notifies nobody) when the
+    /// change makes no difference.
+    /// </summary>
+    public bool Preview(Action<AppSettings> change)
+    {
+        AppSettings snapshot;
+        lock (_gate)
+        {
+            var copy = Clone(Current);
+            change(copy);
+            snapshot = copy.Normalize();
+            if (JsonSerializer.Serialize(snapshot, JsonOptions) == JsonSerializer.Serialize(Current, JsonOptions)) return false;
+            Current = snapshot;
+        }
+
+        Changed?.Invoke(this, snapshot);
+        return true;
+    }
+
     public void ResetToDefaults() => Replace(new AppSettings().Normalize());
 
     /// <summary>Writes the current settings as readable JSON (e.g. to move them to another computer).</summary>

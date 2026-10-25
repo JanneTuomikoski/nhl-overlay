@@ -546,12 +546,17 @@
         </TabControl>
 
         <Border Grid.Row="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,10">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Style="{StaticResource DarkButton}" Content="Cancel" IsCancel="True" Margin="0,0,8,0"
-                        Command="{Binding CancelCommand}" />
-                <Button Style="{StaticResource AccentButton}" Content="Save" IsDefault="True"
-                        Command="{Binding SaveCommand}" />
-            </StackPanel>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource DarkButton}" Content="Cancel" IsCancel="True" Margin="0,0,8,0"
+                            Command="{Binding CancelCommand}" />
+                    <Button Style="{StaticResource AccentButton}" Content="Save" IsDefault="True"
+                            Command="{Binding SaveCommand}" />
+                </StackPanel>
+                <TextBlock VerticalAlignment="Center" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" Margin="0,0,12,0"
+                           Text="Changes show on the overlay right away. Cancel undoes them; hotkeys apply on Save." />
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

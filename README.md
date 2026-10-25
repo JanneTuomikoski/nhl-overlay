@@ -42,6 +42,9 @@ without .NET installed). Add `-p:EnableCompressionInSingleFile=true` for a ~73 M
 The app lives in the **system tray**. Left-click the icon to show or hide the overlay; right-click for
 interaction mode, expanded view, the game filter, Do Not Disturb, refresh, settings and exit.
 
+Changes in the settings window show on the overlay right away. Save keeps them; Cancel (or closing the
+window) undoes them. Hotkeys and "launch with Windows" take effect on Save.
+
 ### Interaction mode vs. click-through
 
 | Mode | Mouse | What you see |

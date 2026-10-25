@@ -11,11 +11,15 @@ using NHLOverlay.ViewModels.Settings;
 namespace NHLOverlay.ViewModels;
 
 /// <summary>
-/// Editable copy of the settings. Nothing is applied until <see cref="SaveCommand"/>; saving only writes
-/// the fields this window owns, so it never overwrites state changed elsewhere (e.g. overlay position).
+/// Editable copy of the settings. Changes are previewed live on the overlay (in memory only) and written to
+/// disk by <see cref="SaveCommand"/>; closing the window without saving reverts the preview. Hotkeys and
+/// "launch with Windows" are applied on save only. Saving and reverting only write the fields this window
+/// owns, so they never overwrite state changed elsewhere (e.g. overlay position).
 /// </summary>
 public sealed class SettingsViewModel : ObservableObject, IDisposable
 {
+    private static readonly TimeSpan PreviewDelay = TimeSpan.FromMilliseconds(120);
+
     private readonly SettingsService _settings;
     private readonly GameStateService _state;
     private readonly HotkeyService _hotkeys;
@@ -23,6 +27,10 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private readonly EventHandler<ScoreboardSnapshot> _stateHandler;
     private readonly EventHandler _hotkeyProblemsHandler;
     private readonly IReadOnlyList<ISettingsSection> _sections;
+    private readonly DispatcherTimer _previewTimer;
+    private AppSettings _original;
+    private bool _previewed;
+    private bool _closed;
 
     private bool _launchWithWindows;
     private bool _showOverlayOnStartup;
@@ -78,6 +86,16 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         ImportCommand = new RelayCommand(Import);
 
         LoadFrom(settings.Current);
+        _original = settings.Current;
+        _previewTimer = new DispatcherTimer(DispatcherPriority.Normal, dispatcher) { Interval = PreviewDelay };
+        _previewTimer.Tick += (_, _) =>
+        {
+            _previewTimer.Stop();
+            Preview();
+        };
+        PropertyChanged += (_, _) => SchedulePreview();
+        foreach (var section in _sections.OfType<System.ComponentModel.INotifyPropertyChanged>())
+            section.PropertyChanged += (_, _) => SchedulePreview();
         _stateHandler = (_, snapshot) => _dispatcher.InvokeAsync(() => UpdateStatus(snapshot));
         _state.Changed += _stateHandler;
         UpdateStatus(state.Current);
@@ -204,32 +222,65 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         foreach (var section in _sections) section.Load(s);
     }
 
+    /// <summary>Shows the edited values on the overlay shortly after the last change (debounced for sliders).</summary>
+    public void SchedulePreview()
+    {
+        if (_closed) return;
+        _previewTimer.Stop();
+        _previewTimer.Start();
+    }
+
+    internal void Preview()
+    {
+        if (_closed) return;
+        if (_settings.Preview(s => Write(s, includeSaveOnly: false))) _previewed = true;
+    }
+
     private void Save()
     {
-        var startupChanged = _settings.Current.General.LaunchWithWindows != LaunchWithWindows;
-        _settings.Update(s =>
+        var startupChanged = _original.General.LaunchWithWindows != LaunchWithWindows;
+        _closed = true;
+        _previewTimer.Stop();
+        _settings.Update(s => Write(s, includeSaveOnly: true));
+        _previewed = false;
+        if (startupChanged) StartupRegistration.Apply(LaunchWithWindows);
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Puts back the values from when the window opened (closing without saving).</summary>
+    private void Revert()
+    {
+        if (!_previewed) return;
+        _previewed = false;
+        LoadFrom(_original);
+        _settings.Update(s => Write(s, includeSaveOnly: false));
+    }
+
+    /// <param name="includeSaveOnly">Also hotkeys and "launch with Windows", which are not previewed.</param>
+    private void Write(AppSettings s, bool includeSaveOnly)
+    {
+        if (includeSaveOnly)
         {
             s.General.LaunchWithWindows = LaunchWithWindows;
-            s.General.ShowOverlayOnStartup = ShowOverlayOnStartup;
-            s.General.RefreshIntervalSeconds = RefreshIntervalSeconds;
-            s.General.ShowLiiga = ShowLiiga;
-            s.Appearance.DisplayMode = DisplayMode;
-            s.Appearance.BackgroundOpacity = BackgroundOpacityPercent / 100;
-            s.Appearance.UiScale = UiScalePercent / 100;
-            s.Appearance.ShowTeamLogos = ShowTeamLogos;
-            s.Appearance.ShowGameClock = ShowGameClock;
-            s.Appearance.ShowShotsOnGoal = ShowShotsOnGoal;
-            s.Window.AlwaysOnTop = AlwaysOnTop;
-            s.Window.ClickThrough = ClickThrough;
-            s.Window.LockPosition = LockPosition;
-            s.Window.SnapToEdges = SnapToEdges;
             s.Hotkeys.ToggleOverlay = ToggleOverlayHotkey;
             s.Hotkeys.ToggleInteraction = ToggleInteractionHotkey;
             s.Hotkeys.ToggleDoNotDisturb = ToggleDoNotDisturbHotkey;
-            foreach (var section in _sections) section.Apply(s);
-        });
-        if (startupChanged) StartupRegistration.Apply(LaunchWithWindows);
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        s.General.ShowOverlayOnStartup = ShowOverlayOnStartup;
+        s.General.RefreshIntervalSeconds = RefreshIntervalSeconds;
+        s.General.ShowLiiga = ShowLiiga;
+        s.Appearance.DisplayMode = DisplayMode;
+        s.Appearance.BackgroundOpacity = BackgroundOpacityPercent / 100;
+        s.Appearance.UiScale = UiScalePercent / 100;
+        s.Appearance.ShowTeamLogos = ShowTeamLogos;
+        s.Appearance.ShowGameClock = ShowGameClock;
+        s.Appearance.ShowShotsOnGoal = ShowShotsOnGoal;
+        s.Window.AlwaysOnTop = AlwaysOnTop;
+        s.Window.ClickThrough = ClickThrough;
+        s.Window.LockPosition = LockPosition;
+        s.Window.SnapToEdges = SnapToEdges;
+        foreach (var section in _sections) section.Apply(s);
     }
 
     private void Reset()
@@ -242,6 +293,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         _settings.ResetToDefaults();
         StartupRegistration.Apply(_settings.Current.General.LaunchWithWindows);
         LoadFrom(_settings.Current);
+        _original = _settings.Current; // a reset is saved; there is nothing to revert to
+        _previewed = false;
     }
 
     private void Export()
@@ -272,6 +325,8 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             var warning = _settings.Import(dialog.FileName);
             StartupRegistration.Apply(_settings.Current.General.LaunchWithWindows);
             LoadFrom(_settings.Current);
+            _original = _settings.Current;
+            _previewed = false;
             MessageBox.Show(warning ?? "Settings imported.", "NHL Live Overlay", MessageBoxButton.OK,
                 warning is null ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
@@ -310,8 +365,12 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
             : "None";
     }
 
+    /// <summary>Called when the window closes: an unsaved preview is reverted.</summary>
     public void Dispose()
     {
+        _closed = true;
+        _previewTimer.Stop();
+        Revert();
         _state.Changed -= _stateHandler;
         _hotkeys.ProblemsChanged -= _hotkeyProblemsHandler;
     }

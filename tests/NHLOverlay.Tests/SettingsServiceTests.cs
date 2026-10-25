@@ -71,6 +71,24 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void Preview_applies_in_memory_without_saving_and_skips_no_op_changes()
+    {
+        var service = CreateService();
+        service.Update(s => s.Appearance.UiScale = 1.5);
+        var changes = 0;
+        service.Changed += (_, _) => changes++;
+
+        Assert.True(service.Preview(s => s.Appearance.UiScale = 2.0));
+        Assert.False(service.Preview(s => s.Appearance.UiScale = 2.0));
+
+        Assert.Equal(1, changes);
+        Assert.Equal(2.0, service.Current.Appearance.UiScale);
+        var reloaded = CreateService();
+        reloaded.Load();
+        Assert.Equal(1.5, reloaded.Current.Appearance.UiScale); // the file still has the saved value
+    }
+
+    [Fact]
     public void Corrupt_file_falls_back_to_defaults_and_is_backed_up()
     {
         WriteSettingsFile("{ this is not json");
