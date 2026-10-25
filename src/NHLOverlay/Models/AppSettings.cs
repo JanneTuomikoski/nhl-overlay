@@ -190,8 +190,13 @@ public sealed class AppearanceSettings
     /// <summary>Expanded view: list the assists under each goal.</summary>
     public bool ShowAssists { get; set; } = true;
 
-    /// <summary>A game card pulses softly for 30 seconds after a goal.</summary>
+    public const int MinGoalFlashSeconds = 5;
+    public const int MaxGoalFlashSeconds = 60;
+
+    /// <summary>A game card pulses softly for <see cref="GoalFlashSeconds"/> after a goal.</summary>
     public bool FlashOnGoal { get; set; } = true;
+
+    public int GoalFlashSeconds { get; set; } = 20;
 
     /// <summary>Sections ("NHL", "LIIGA", "NHL FINAL", "LIIGA FINAL") the user collapsed by clicking their title.</summary>
     public List<string> CollapsedSections { get; set; } = [];
@@ -203,6 +208,7 @@ public sealed class AppearanceSettings
             .Where(s => s is "NHL" or "LIIGA" or "NHL FINAL" or "LIIGA FINAL").Distinct().ToList();
         BackgroundOpacity = ClampOrDefault(BackgroundOpacity, 0.0, 1.0, 0.85);
         UiScale = ClampOrDefault(UiScale, MinUiScale, MaxUiScale, 1.0);
+        GoalFlashSeconds = Math.Clamp(GoalFlashSeconds, MinGoalFlashSeconds, MaxGoalFlashSeconds);
         return this;
     }
 

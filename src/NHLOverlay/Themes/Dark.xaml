@@ -506,7 +506,8 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Goal flash: a faint green pulse over the card for 30 s after a goal (behind the content). -->
+    <!-- Goal flash: a faint green pulse over the card after a goal (behind the content). The pulses repeat
+         until the card's timer clears IsGoalFlash (Appearance.GoalFlashSeconds). -->
     <Style x:Key="GoalFlashOverlay" TargetType="Rectangle">
         <Setter Property="Fill" Value="{StaticResource StatusLiveBrush}" />
         <Setter Property="Opacity" Value="0" />
@@ -517,7 +518,7 @@
                     <BeginStoryboard x:Name="CardPulse">
                         <Storyboard>
                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="0.16" Duration="0:0:0.9"
-                                             AutoReverse="True" RepeatBehavior="0:0:30" />
+                                             AutoReverse="True" RepeatBehavior="Forever" />
                         </Storyboard>
                     </BeginStoryboard>
                 </DataTrigger.EnterActions>
@@ -536,7 +537,7 @@
                     <BeginStoryboard x:Name="AwayScorePulse">
                         <Storyboard>
                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.35" Duration="0:0:0.6"
-                                             AutoReverse="True" RepeatBehavior="0:0:30" />
+                                             AutoReverse="True" RepeatBehavior="Forever" />
                         </Storyboard>
                     </BeginStoryboard>
                 </DataTrigger.EnterActions>
@@ -554,7 +555,7 @@
                     <BeginStoryboard x:Name="HomeScorePulse">
                         <Storyboard>
                             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.35" Duration="0:0:0.6"
-                                             AutoReverse="True" RepeatBehavior="0:0:30" />
+                                             AutoReverse="True" RepeatBehavior="Forever" />
                         </Storyboard>
                     </BeginStoryboard>
                 </DataTrigger.EnterActions>

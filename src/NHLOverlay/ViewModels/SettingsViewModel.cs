@@ -44,6 +44,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private bool _showShotsOnGoal;
     private bool _showAssists;
     private bool _flashOnGoal;
+    private int _goalFlashSeconds;
     private bool _alwaysOnTop;
     private bool _clickThrough;
     private bool _lockPosition;
@@ -162,6 +163,12 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     public bool FlashOnGoal { get => _flashOnGoal; set => SetProperty(ref _flashOnGoal, value); }
 
+    public int GoalFlashSeconds { get => _goalFlashSeconds; set => SetProperty(ref _goalFlashSeconds, value); }
+
+    public int MinGoalFlashSeconds => AppearanceSettings.MinGoalFlashSeconds;
+
+    public int MaxGoalFlashSeconds => AppearanceSettings.MaxGoalFlashSeconds;
+
     // Overlay window
     public bool AlwaysOnTop { get => _alwaysOnTop; set => SetProperty(ref _alwaysOnTop, value); }
 
@@ -220,6 +227,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         ShowShotsOnGoal = s.Appearance.ShowShotsOnGoal;
         ShowAssists = s.Appearance.ShowAssists;
         FlashOnGoal = s.Appearance.FlashOnGoal;
+        GoalFlashSeconds = s.Appearance.GoalFlashSeconds;
         AlwaysOnTop = s.Window.AlwaysOnTop;
         ClickThrough = s.Window.ClickThrough;
         LockPosition = s.Window.LockPosition;
@@ -286,6 +294,7 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         s.Appearance.ShowShotsOnGoal = ShowShotsOnGoal;
         s.Appearance.ShowAssists = ShowAssists;
         s.Appearance.FlashOnGoal = FlashOnGoal;
+        s.Appearance.GoalFlashSeconds = GoalFlashSeconds;
         s.Window.AlwaysOnTop = AlwaysOnTop;
         s.Window.ClickThrough = ClickThrough;
         s.Window.LockPosition = LockPosition;

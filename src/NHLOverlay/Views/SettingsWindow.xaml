@@ -456,7 +456,19 @@
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowAssists}"
                                   Content="Show assists under each goal in expanded view" />
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding FlashOnGoal}"
-                                  Content="Flash the game card for 30 seconds after a goal" />
+                                  Content="Flash the game card after a goal" />
+                        <Grid IsEnabled="{Binding FlashOnGoal}" Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="56" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Style="{StaticResource DarkSlider}" Minimum="{Binding MinGoalFlashSeconds, Mode=OneTime}"
+                                    Maximum="{Binding MaxGoalFlashSeconds, Mode=OneTime}" SmallChange="5" LargeChange="5"
+                                    TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding GoalFlashSeconds}"
+                                    AutomationProperties.Name="Goal flash duration" />
+                            <TextBlock Grid.Column="1" TextAlignment="Right" VerticalAlignment="Center"
+                                       Text="{Binding GoalFlashSeconds, StringFormat={}{0} s}" />
+                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

@@ -310,9 +310,6 @@ public sealed class GameCardViewModel : ObservableObject
 
     private bool _showAssists;
 
-    /// <summary>How long a card flashes after a goal.</summary>
-    internal static readonly TimeSpan GoalFlashDuration = TimeSpan.FromSeconds(30);
-
     private int? _lastAwayScore;
     private int? _lastHomeScore;
     private DispatcherTimer? _flashTimer;
@@ -320,7 +317,7 @@ public sealed class GameCardViewModel : ObservableObject
     private bool _awayGoalFlash;
     private bool _homeGoalFlash;
 
-    /// <summary>A goal was scored in the last <see cref="GoalFlashDuration"/>: the card pulses.</summary>
+    /// <summary>A goal was scored in the last few seconds (Appearance.GoalFlashSeconds): the card pulses.</summary>
     public bool IsGoalFlash { get => _isGoalFlash; private set => SetProperty(ref _isGoalFlash, value); }
 
     public bool AwayGoalFlash { get => _awayGoalFlash; private set => SetProperty(ref _awayGoalFlash, value); }
@@ -365,7 +362,7 @@ public sealed class GameCardViewModel : ObservableObject
         HomeScore = HasScore ? game.Home.Score!.Value.ToString(culture) : "";
         AwayLeading = HasScore && game.Away.Score > game.Home.Score;
         HomeLeading = HasScore && game.Home.Score > game.Away.Score;
-        UpdateGoalFlash(game, appearance.FlashOnGoal);
+        UpdateGoalFlash(game, appearance.FlashOnGoal, TimeSpan.FromSeconds(appearance.GoalFlashSeconds));
 
         HasShots = game.Away.ShotsOnGoal.HasValue && game.Home.ShotsOnGoal.HasValue && HasScore;
         ShowShots = appearance.ShowShotsOnGoal && HasShots;
@@ -398,7 +395,7 @@ public sealed class GameCardViewModel : ObservableObject
     /// Flashes the card when a visible score goes up. The first score this card sees (startup, another day,
     /// a revealed shield) is only a baseline, so old goals never flash.
     /// </summary>
-    private void UpdateGoalFlash(HockeyGame game, bool enabled)
+    private void UpdateGoalFlash(HockeyGame game, bool enabled, TimeSpan duration)
     {
         int? away = HasScore ? game.Away.Score : null;
         int? home = HasScore ? game.Home.Score : null;
@@ -420,10 +417,11 @@ public sealed class GameCardViewModel : ObservableObject
         IsGoalFlash = true;
         if (_flashTimer is null)
         {
-            _flashTimer = new DispatcherTimer { Interval = GoalFlashDuration };
+            _flashTimer = new DispatcherTimer();
             _flashTimer.Tick += (_, _) => StopGoalFlash();
         }
 
+        _flashTimer.Interval = duration;
         _flashTimer.Start();
     }
 

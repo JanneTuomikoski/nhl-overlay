@@ -153,12 +153,13 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public void Out_of_range_values_are_clamped()
     {
-        WriteSettingsFile("""{ "appearance": { "backgroundOpacity": 7, "uiScale": 0.1 }, "window": { "width": 5 } }""");
+        WriteSettingsFile("""{ "appearance": { "backgroundOpacity": 7, "uiScale": 0.1, "goalFlashSeconds": 600 }, "window": { "width": 5 } }""");
         var service = CreateService();
         service.Load();
 
         Assert.Equal(1.0, service.Current.Appearance.BackgroundOpacity);
         Assert.Equal(0.75, service.Current.Appearance.UiScale);
+        Assert.Equal(60, service.Current.Appearance.GoalFlashSeconds);
         Assert.Equal(200, service.Current.Window.Width);
     }
 
