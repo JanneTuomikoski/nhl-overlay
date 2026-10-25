@@ -243,6 +243,16 @@
                     <StackPanel Visibility="{Binding IsGamesView, Converter={StaticResource BoolToVisibility}}">
                         <!-- Morning recap ("LAST NIGHT"). -->
                         <ContentControl Content="{Binding Recap}" Focusable="False">
+                            <!-- An explicit ContentTemplate is applied even to null content, so hide the slot when there is no recap. -->
+                            <ContentControl.Style>
+                                <Style TargetType="ContentControl">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Recap}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ContentControl.Style>
                             <ContentControl.ContentTemplate>
                                 <DataTemplate DataType="{x:Type vm:RecapCard}">
                                     <Border Margin="6,2,6,4" Padding="8,5,8,6" CornerRadius="6" Background="#14FFFFFF"
