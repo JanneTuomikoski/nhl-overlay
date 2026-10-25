@@ -453,6 +453,8 @@
                                   Content="Show the game clock" />
                         <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowShotsOnGoal}"
                                   Content="Show shots on goal in compact view" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShowAssists}"
+                                  Content="Show assists under each goal in expanded view" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

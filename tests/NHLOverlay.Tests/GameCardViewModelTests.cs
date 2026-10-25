@@ -31,4 +31,34 @@ public class GameCardViewModelTests
         Assert.Equal("SO", line.Period);
         Assert.Equal("", line.Time);
     }
+
+    [Fact]
+    public void Numbers_repeat_scorers_and_lists_assists()
+    {
+        GameGoal Goal(long scorer, string name, int away, bool shootout = false, params GoalAssist[] assists) => new()
+        {
+            PlayerId = scorer, ScorerShortName = name, TeamAbbrev = "EDM", Period = shootout ? 5 : 1,
+            PeriodType = shootout ? PeriodType.Shootout : PeriodType.Regulation, TimeInPeriod = "05:00", AwayScore = away, Assists = assists,
+        };
+        var game = new HockeyGame
+        {
+            Id = 1,
+            Status = GameStatus.Final,
+            Away = new HockeyTeam { Abbrev = "EDM", Score = 4 },
+            Home = new HockeyTeam { Abbrev = "TOR", Score = 3 },
+            Goals =
+            [
+                Goal(97, "C. McDavid", 1, false, new GoalAssist(29, "L. Draisaitl"), new GoalAssist(2, "E. Bouchard")),
+                Goal(29, "L. Draisaitl", 2),
+                Goal(97, "C. McDavid", 3, false, new GoalAssist(29, "L. Draisaitl")),
+                Goal(97, "C. McDavid", 4, shootout: true),
+            ],
+        };
+
+        var lines = GameCardViewModel.ToGoalLines(game);
+
+        Assert.Equal(["C. McDavid", "L. Draisaitl", "C. McDavid (2)", "C. McDavid"], lines.Select(l => l.Scorer));
+        Assert.Equal(["L. Draisaitl, E. Bouchard", "", "L. Draisaitl", ""], lines.Select(l => l.Assists));
+        Assert.False(lines[1].HasAssists);
+    }
 }

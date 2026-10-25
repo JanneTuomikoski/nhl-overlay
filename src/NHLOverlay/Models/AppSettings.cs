@@ -187,6 +187,9 @@ public sealed class AppearanceSettings
 
     public bool ShowShotsOnGoal { get; set; }
 
+    /// <summary>Expanded view: list the assists under each goal.</summary>
+    public bool ShowAssists { get; set; } = true;
+
     /// <summary>Sections ("NHL", "LIIGA", "NHL FINAL", "LIIGA FINAL") the user collapsed by clicking their title.</summary>
     public List<string> CollapsedSections { get; set; } = [];
 

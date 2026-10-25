@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:NHLOverlay.ViewModels"
+             xmlns:controls="clr-namespace:NHLOverlay.Controls"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:GameCardViewModel}">
     <!-- Columns line up across rows via shared size groups. -->
@@ -19,6 +20,10 @@
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Tags" />
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Score" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <TextBlock Grid.Column="0" Text="{Binding Period}" Margin="0,0,6,0" Foreground="{StaticResource TextSecondaryBrush}" />
                     <TextBlock Grid.Column="1" Text="{Binding Time}" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"
                                Typography.NumeralAlignment="Tabular" />
@@ -28,6 +33,24 @@
                                Foreground="{StaticResource StatusOvertimeBrush}" />
                     <TextBlock Grid.Column="5" Text="{Binding Score}" Margin="8,0,0,0" TextAlignment="Right"
                                Foreground="{StaticResource TextSecondaryBrush}" Typography.NumeralAlignment="Tabular" />
+                    <!-- Assists under the scorer (expanded view, when switched on). -->
+                    <TextBlock Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3" Text="{Binding Assists}" FontSize="10.5"
+                               TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasAssists}" Value="True" />
+                                            <Condition Binding="{Binding ShowAssists, RelativeSource={RelativeSource AncestorType=controls:GoalList}}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </Grid>
             </DataTemplate>
         </ItemsControl.ItemTemplate>

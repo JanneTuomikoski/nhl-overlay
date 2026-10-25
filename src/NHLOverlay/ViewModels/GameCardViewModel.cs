@@ -9,7 +9,12 @@ using NHLOverlay.Services;
 namespace NHLOverlay.ViewModels;
 
 /// <summary>One line of a game's goal list: "2ND 08:14  EDM  C. McDavid  PP  2-1".</summary>
-public sealed record GoalLine(string Period, string Time, string Team, string Scorer, string Tags, string Score);
+/// <param name="Scorer">"C. McDavid", or "C. McDavid (2)" for the player's second goal of the game.</param>
+/// <param name="Assists">"L. Draisaitl, E. Bouchard"; empty for a shootout goal or when the feed lists none.</param>
+public sealed record GoalLine(string Period, string Time, string Team, string Scorer, string Tags, string Score, string Assists = "")
+{
+    public bool HasAssists => Assists.Length > 0;
+}
 
 /// <summary>Everything a card needs besides the game itself; built once per refresh.</summary>
 public sealed record CardContext(
@@ -302,6 +307,11 @@ public sealed class GameCardViewModel : ObservableObject
 
     public bool HasGoals => _goals.Count > 0;
 
+    private bool _showAssists;
+
+    /// <summary>Expanded view: list the assists under each goal (Settings > Appearance).</summary>
+    public bool ShowAssists { get => _showAssists; private set => SetProperty(ref _showAssists, value); }
+
     /// <summary>Compact mode: the goal list opens below the card when it is clicked.</summary>
     public bool IsDetailsOpen { get => _isDetailsOpen; set => SetProperty(ref _isDetailsOpen, value); }
 
@@ -344,7 +354,8 @@ public sealed class GameCardViewModel : ObservableObject
         AwayShots = HasShots ? game.Away.ShotsOnGoal!.Value.ToString(culture) : "";
         HomeShots = HasShots ? game.Home.ShotsOnGoal!.Value.ToString(culture) : "";
 
-        Goals = IsShielded ? [] : game.Goals.Select(g => ToGoalLine(g, game.MaxRegulationPeriods)).ToList();
+        Goals = IsShielded ? [] : ToGoalLines(game);
+        ShowAssists = appearance.ShowAssists;
 
         ShowLogos = appearance.ShowTeamLogos;
         if (ShowLogos)
@@ -411,7 +422,28 @@ public sealed class GameCardViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(team.Name) ? team.Abbrev : team.Name;
     }
 
-    internal static GoalLine ToGoalLine(GameGoal goal, int maxRegulationPeriods)
+    /// <summary>The game's goals in order, numbering each scorer's second and later goals ("(2)", "(3)").</summary>
+    internal static IReadOnlyList<GoalLine> ToGoalLines(HockeyGame game)
+    {
+        var goalsSoFar = new Dictionary<string, int>();
+        var lines = new List<GoalLine>(game.Goals.Count);
+        foreach (var goal in game.Goals)
+        {
+            var number = 0;
+            if (!goal.IsShootout)
+            {
+                var scorer = goal.PlayerId != 0 ? goal.PlayerId.ToString(CultureInfo.InvariantCulture) : goal.ScorerName;
+                number = goalsSoFar[scorer] = goalsSoFar.GetValueOrDefault(scorer) + 1;
+            }
+
+            lines.Add(ToGoalLine(goal, game.MaxRegulationPeriods, number));
+        }
+
+        return lines;
+    }
+
+    /// <param name="goalNumber">The scorer's goal count in this game including this one (shown from 2 on).</param>
+    internal static GoalLine ToGoalLine(GameGoal goal, int maxRegulationPeriods, int goalNumber = 1)
     {
         var tags = new List<string>(2);
         if (string.Equals(goal.Strength, "pp", StringComparison.OrdinalIgnoreCase)) tags.Add("PP");
@@ -422,9 +454,10 @@ public sealed class GameCardViewModel : ObservableObject
             GameStatusFormatter.PeriodLabel(goal.Period, goal.PeriodType, maxRegulationPeriods),
             goal.IsShootout ? "" : goal.TimeInPeriod,
             goal.TeamAbbrev,
-            goal.ScorerShortName,
+            goalNumber > 1 ? $"{goal.ScorerShortName} ({goalNumber})" : goal.ScorerShortName,
             string.Join(" ", tags),
-            $"{goal.AwayScore}-{goal.HomeScore}");
+            $"{goal.AwayScore}-{goal.HomeScore}",
+            goal.IsShootout ? "" : string.Join(", ", goal.Assists.Select(a => a.Name).Where(n => n.Length > 0)));
     }
 
     private async Task LoadLogoAsync(string? url, bool away)
