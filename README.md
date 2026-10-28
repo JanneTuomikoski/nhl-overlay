@@ -8,11 +8,35 @@ Highlights: Hat-Trick Watch, notifications with voice, a gaming profile, a Finni
 recap, a spoiler shield, a focus dashboard with a live shot map, standings with the playoff race, and
 shutout / milestone / point-streak watches.
 
+## Screenshots
+
+<p>
+  <img src="screenshots/overlay-compact.png" width="400" alt="Compact overlay: Finns tonight panel, hat-trick and shutout watches, live clocks">
+  <img src="screenshots/focus-dashboard.png" width="400" alt="Focus dashboard: strength strip, shots by period, shot map and play-by-play">
+</p>
+<p>
+  <img src="screenshots/settings-general.png" width="400" alt="Settings window">
+  <img src="screenshots/overlay-expanded.png" width="240" alt="Expanded overlay: logos, shots and every goal with assists">
+</p>
+
 ## Requirements
 
 - Windows 10 or 11 (x64)
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) to build
   (`winget install Microsoft.DotNet.SDK.10`). The published build needs no .NET installation.
+
+## Download
+
+Prebuilt `NHLOverlay.exe` files are on the [releases page](../../releases). The exe is not code-signed, so the
+first start shows the SmartScreen "Windows protected your PC" dialog: click **More info**, then **Run anyway**.
+Each release has a `.sha256` file; compare it with
+
+```powershell
+(Get-FileHash NHLOverlay.exe -Algorithm SHA256).Hash
+```
+
+The exe bundles the .NET runtime and does not update itself, so runtime security fixes arrive with new
+releases only.
 
 ## Build, test, run
 
@@ -194,3 +218,17 @@ tests/NHLOverlay.Tests/   unit tests with captured API responses in Fixtures/ (r
 - Nationality uses birth country unless corrected by hand (the NHL API has no nationality field).
 - Career totals for milestones refresh once a day; a milestone is detected as soon as the goal appears.
 - Not implemented: horizontal ticker layout, light theme, automatic updates.
+
+## Contributing
+
+Issues and pull requests are welcome. `dotnet test` must pass (CI builds and tests every push and pull
+request), source files keep their CRLF line endings, and a new API field should come with a captured response
+in `tests/NHLOverlay.Tests/Fixtures/`. Security problems: see [SECURITY.md](SECURITY.md).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
+
+This is an unofficial, fan-made tool. It is not affiliated with, endorsed by or sponsored by the NHL, its teams
+or Liiga. Team names and logos are trademarks of their owners; the app downloads logos from the leagues' public
+servers at run time and ships none.

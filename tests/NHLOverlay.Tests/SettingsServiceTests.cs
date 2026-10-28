@@ -221,11 +221,11 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public void Team_settings_are_normalized()
     {
-        WriteSettingsFile("""{ "teams": { "favorites": [" edm", "EDM", "", "tor"], "filter": "Live", "sortOrder": "StartTime" } }""");
+        WriteSettingsFile("""{ "teams": { "favorites": [" edm", "EDM", "", "tor", "../x", "A", "NJ1", "TOOLONG", "kär"], "filter": "Live", "sortOrder": "StartTime" } }""");
         var service = CreateService();
         service.Load();
 
-        Assert.Equal(["EDM", "TOR"], service.Current.Teams.Favorites);
+        Assert.Equal(["EDM", "TOR", "KÄR"], service.Current.Teams.Favorites);
         Assert.Equal(GameFilter.Live, service.Current.Teams.Filter);
         Assert.Equal(GameSortOrder.StartTime, service.Current.Teams.SortOrder);
         Assert.Equal(FavoriteHighlight.BarAndTint, service.Current.Teams.Highlight);

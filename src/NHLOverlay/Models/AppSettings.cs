@@ -58,10 +58,11 @@ public sealed class AppSettings
 
     internal static T DefinedOr<T>(T value, T fallback) where T : struct, Enum => Enum.IsDefined(value) ? value : fallback;
 
-    /// <summary>Trimmed, upper-case, distinct, non-empty team keys.</summary>
+    /// <summary>Trimmed, upper-case, distinct team keys of 2 to 4 letters (they end up in URLs and cache file names).</summary>
     internal static List<string> NormalizeTeamList(List<string>? teams) =>
         (teams ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
                      .Select(t => t.Trim().ToUpperInvariant())
+                     .Where(t => t.Length is >= 2 and <= 4 && t.All(char.IsLetter))
                      .Distinct()
                      .ToList();
 }

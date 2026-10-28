@@ -536,10 +536,10 @@ public sealed class GameCardViewModel : ObservableObject
 
     private void OpenGameCenter()
     {
-        if (_gameCenterUrl is null) return;
+        if (!Uri.TryCreate(_gameCenterUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return;
         try
         {
-            Process.Start(new ProcessStartInfo(_gameCenterUrl) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
         }
         catch (Exception ex)
         {

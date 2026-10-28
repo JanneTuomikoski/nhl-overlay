@@ -3,4 +3,6 @@ obj/
 publish/
 *.user
 .vs/
+.vscode/
+.idea/
 TestResults/

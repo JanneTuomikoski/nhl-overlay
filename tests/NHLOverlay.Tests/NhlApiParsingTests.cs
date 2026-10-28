@@ -133,6 +133,23 @@ public class NhlApiParsingTests
         await Assert.ThrowsAsync<NhlApiException>(() => api.GetGamesForDateAsync(new DateOnly(2026, 10, 24), CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Game_center_link_must_be_a_site_relative_path()
+    {
+        using var api = Fixtures.ApiReturning("""
+            { "games": [
+                { "id": 1, "gameCenterLink": "/gamecenter/lak-vs-njd/2026/10/24/1" },
+                { "id": 2, "gameCenterLink": "@evil.example/x" },
+                { "id": 3, "gameCenterLink": "//evil.example/x" },
+                { "id": 4, "gameCenterLink": "https://evil.example/x" },
+                { "id": 5, "gameCenterLink": "" } ] }
+            """);
+        var games = await api.GetGamesForDateAsync(new DateOnly(2026, 10, 24), CancellationToken.None);
+
+        Assert.Equal("https://www.nhl.com/gamecenter/lak-vs-njd/2026/10/24/1", games.Single(g => g.Id == 1).GameCenterUrl);
+        Assert.All(games.Where(g => g.Id != 1), g => Assert.Null(g.GameCenterUrl));
+    }
+
     [Theory]
     [InlineData("FUT", "OK", "REG", false, GameStatus.Scheduled)]
     [InlineData("PRE", "OK", "REG", false, GameStatus.PreGame)]

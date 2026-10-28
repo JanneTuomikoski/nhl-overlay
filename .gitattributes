@@ -1,0 +1,4 @@
+# The sources use CRLF line endings on purpose; git must never convert them.
+* -text
+*.ico binary
+*.png binary

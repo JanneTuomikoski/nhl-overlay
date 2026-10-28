@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work the way the README describes
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: v0.9.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: From %AppData%\NHLOverlay\logs\nhloverlay.log. File paths in it contain your Windows user name; remove anything you do not want to share.
+      render: text

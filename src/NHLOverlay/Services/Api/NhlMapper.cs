@@ -57,7 +57,7 @@ internal static class NhlMapper
             InIntermission = inIntermission,
             LastPeriodType = dto.GameOutcome?.LastPeriodType is { } last ? ParsePeriodType(last) : null,
             Goals = (dto.Goals ?? []).Where(g => g?.PlayerId is > 0).Select(g => MapGoal(g!)).ToList(),
-            GameCenterUrl = string.IsNullOrWhiteSpace(dto.GameCenterLink) ? null : NhlWebsite + dto.GameCenterLink,
+            GameCenterUrl = dto.GameCenterLink is ['/', not '/', ..] link ? NhlWebsite + link : null,
         };
     }
 
